@@ -1,0 +1,771 @@
+\documentclass{article}
+
+\usepackage{fullpage}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{extarrows}
+\usepackage{float}
+\floatstyle{boxed}
+\restylefloat{figure}
+\newcommand{\rel}[1]{ \mbox{\sc [#1]} }
+
+\title{ Operation Semantics in Lua}
+
+\author{
+  Prof. Thomas Austin\\
+  Hanshu Lin \\
+  San Jos\'{e} State University \\
+  }
+\date{}
+
+\begin{document}
+\maketitle
+
+%--------------------------------------------------------------------------
+\section{Introduction}
+
+Lua is an extension programming language. It is designed to support general procedural programming with data description facilities. As a embeddable scripting language. It is relativly small and has simple. However, Lua is powerful, fast and lightweight. Lua is often used to be embedded in many applications to implement a single function in them. Because of its flexibility, the applications using lua could have a good ability of extending and customizing.
+
+What is more, as an extension language, Lua has no ``main" method or program. All it does is being used as a embedded function in its ``host". Therefore, host programs can invoke some functions to execute portion of Lua code. The scripts of Lua can be easily used when using C/C++. Also, Lua can use functions of C/C++ in his own code since Lua is made by standard C language.
+
+The compiler of lua can be executed in almost all platforms and they are also very small (less that 200k in common). The distribution includes a sample host program called lua, which uses the Lua library to offer a complete, standalone Lua interpreter, for interactive or batch use. Nowaday, Lua has been used in many domains because of its pros.
+
+%--------------------------------------------------------------------------
+\section{Full Lua language}
+At beginning, the syntax in full version Lua will be introduced in this chapter. As mentioned above, Lua language is an extension programming language. In other words, the syntax of full Lua could not be so comlicated. However, there are still several parts which would render confusion in Lua. We will talk about it later.  
+
+\subsection{Syntax in Lua}
+As a small extension language, Lua has many same points with JavaScript in the structure. However it still remains its difference. One important thing is that Lua splits its statement and expression in the syntax and thus does not allow expression to appear alone in one line of code. In other words, this is more like Java, a big programming language which has clearly seperated the meaning of those two syntax.
+
+In Lua, every program can be thought as a block. A block is a list of statements, which are executed sequentially. In addition, return statement can only be used in the end of a block, although it is optional. Therefore, a block can be represent as following:
+\begin{center}
+\tt Block ::= \{Statement\}[Return Statement]\\ 
+\end{center}
+Which the portion ``Statement" has a bunch of syntax with expressions within. We will talk about it in detail in the following part. Although Syntax in Lua is not this simple, to make it concise, we will say that the basic element in Lua is blocks and statments in them and focus on here.
+
+Since we found a way to decommpose Lua, we will separately talk about those two important elements: Expression and Statement. What is more, tables of their full syntax are given.
+
+Morever, the part of functions can not be ignored in any language, especially in Lua. In Luas, syntax including function are as follows:
+\begin{center}
+\tt Statement ::= FunctionCall\\ 
+\tt Statement ::= FunctionDefinition\\ 
+\tt Expression ::= FunctionCall\\ 
+\tt Expression ::= AnonymousFunctionDefinition\\ 
+\end{center}
+So the reason why is crucial would be obvious, a function can be invoked both in statement and expression. In other words, Lua actually does not completely seperate its statement and expression into to independent parts because of funcions. Therefore, we will still introduce them sepeartely but we will also unite them finally.
+
+
+
+\subsection{Expressions}
+You can see Figure \ref{fig:LuaExp}
+
+
+% Commands for formatting figure
+\newcommand{\mydefhead}[2]{\multicolumn{2}{l}{{#1}}&\mbox{\emph{#2}}\\}
+\newcommand{\mydefcase}[2]{\qquad\qquad& #1 &\mbox{#2}\\}
+
+% Commands for language format
+\newcommand{\functiondef}[2]{\mbox{\tt function}~(\overline{#1_i})~#2~ {\tt end}}
+
+
+% ----------------------------[FULL LUA]Expression---------------------------------
+% Table of Expressions in Lua
+\begin{figure}
+\caption{Expressions in Lua}
+\label{fig:LuaExp}
+\[
+\begin{array}{llr}
+  \mydefhead{e,f ::=\qquad\qquad\qquad\qquad}{Expressions}
+  \mydefcase{\tt nil}{nil}
+  \mydefcase{v}{value}
+  \mydefcase{p}{prefix expression}
+  \mydefcase{\tt ...}{vararg expression}
+  \mydefcase{\functiondef e b}{lambda function definition}
+  \mydefcase{\{\overline{[v_i] = e_i}\}}{table constructor}
+  \mydefcase{e ~binop~ e}{binary operation}
+  \mydefcase{unop~ e}{unary operation}
+  \\
+  \mydefhead{v ::=\qquad\qquad\qquad\qquad}{Values}
+  \mydefcase{n}{number}
+  \mydefcase{\tt true}{boolean true}
+  \mydefcase{\tt false}{boolean false}
+  \mydefcase{s}{string}
+  \\
+  \mydefhead{p ::=\qquad\qquad\qquad\qquad}{Prefix Expressions}
+  \mydefcase{x}{variable}
+  \mydefcase{f(\overline{e_i})}{function call}
+  \mydefcase{(e)}{prefix expression}
+  
+  \\
+  \mydefhead{x ::=\qquad\qquad\qquad\qquad}{Variables}
+  \mydefcase{s}{string}
+  \mydefcase{p[e]}{table select}
+  \mydefcase{p.s}{table directly select}
+  \\
+  binop ::= & + ~|~ - ~|~ * ~|~ / ~|~ .. ~|~ > ~|~ >= ~|~ < ~|~ <= ~|~ == ~|~ ~= ~|~ and ~|~ or & \mbox{\emph{Binary operators}} \\
+  unop ::= & - ~|~ not ~|~ *  & \mbox{\emph{Unary operators}} \\
+  \\
+  \mydefhead{b \qquad\qquad\qquad\qquad}{Blocks}
+\end{array}
+\]
+\end{figure}
+
+
+
+\subsection{Statements}
+You can see Figure \ref{fig:LuaStat}
+
+
+% Commands for language format
+\newcommand{\assign}[2]{{\overline{#1_i}}~{=}~{\overline{#2_j}}}
+\newcommand{\doe}[1]{\mbox{\tt do}~#1~{\tt end}}
+\newcommand{\ife}[3]{\mbox{\tt if}~{#1}~\mbox{\tt then}~{#2}~\mbox{\tt else}~{#3}~{\tt end}}
+\newcommand{\whilee}[2]{\mbox{\tt while}~#1~{\tt do}~#2~{\tt end}}
+\newcommand{\repeate}[2]{\mbox{\tt repeat}~#2~{\tt until}~#1~}
+\newcommand{\for}[3]{\mbox{\tt for}~#1~=~#2_1,~#2_2,~#2_3~{\tt do}~#3~{\tt end}}
+\newcommand{\function}[3]{\mbox{\tt function}~#1({\overline{#2_i}})~#3~{\tt end}}
+\newcommand{\local}[2]{\mbox{\tt local}~{\assign #1 #2}}
+
+
+% ----------------------------[FULL LUA]Statement----------------------------------
+\begin{figure}
+\caption{Statements in Lua}
+\label{fig:LuaStat}
+\[
+\begin{array}{llr}
+  \mydefhead{s ::=\qquad\qquad\qquad\qquad}{Statements}
+  \mydefcase{;}{empty statement}
+  \mydefcase{\assign x e}{assignment statement}
+  \mydefcase{\local n e}{local assignment statement}
+  \mydefcase{\function f n b}{function definition}
+  \mydefcase{f(\overline{e_i})}{function call}
+  \mydefcase{::~n~::}{label}
+  \mydefcase{\tt break}{break}
+  \mydefcase{{\tt goto} ~n}{goto}
+  \mydefcase{\doe b}{do}
+  \mydefcase{\ife e b b}{if statement}
+  \mydefcase{\whilee e b}{while statement}
+  \mydefcase{\repeate e b}{repeat statement}
+  \mydefcase{\for n e b}{for statement}
+  \\
+  \mydefhead{b ::=\qquad\qquad\qquad\qquad}{Blocks}
+  \mydefcase{\overline{s_i}~{\tt return}~\overline{e_i}}{block statements}
+  \\
+  \mydefhead{f ::=\qquad\qquad\qquad\qquad}{Function Names}
+  \mydefcase{n}{name}
+  \mydefcase{n.f}{name2}
+  \mydefcase{f:n}{name3}
+  \mydefhead{n \qquad\qquad\qquad\qquad}{Names}
+  \mydefhead{e \qquad\qquad\qquad\qquad}{Expressions}
+  \mydefhead{x \qquad\qquad\qquad\qquad}{Variables}
+\end{array}
+\]
+\end{figure}
+
+
+
+%--------------------------------------TEXT--------------------------------------
+\section{Prototype in Featherweight Lua language}
+Although Lua is a extension programming language and is simple, its full syntax is complex and a little wierd. It would be hard to prove a formal security guarantees. Therefore, to make it simpler to read and prove, we need to simplify the original full syntax. Here we call it Featherweight Lua (FWLua). In FWLua, we remove those unnecessary syntax and make a desugering. Only basic and key syntax are remained in the syntax of FWLua.  
+
+One important thing need to be mentioned. In syntax, Lua separetes its statement and expression, which of both are indispensable in a programming language, into two parts. However, they are still linked with each other. We can't only represent the syntax of expressions or statements. In solving this, we split them into two tables(parts) but still including each others. 
+
+We will start with the syntax of expression, which is about basic variables and values. Second, a syntax of statement will be presented and then be combined with expression. We also need to take consideration of function since function is a special part in Lua language.
+
+\subsection{Expressions}
+The syntax of Expression in Featherweight Lua is presented in Figure~\ref{fig:FWLuaExp}. This syntax captures a more subtle syntax about original Lua Expression. In FW Lua Expression syntax, we desugar the prefix expression, since it is just a expression with parentheses. What is more, unary operation can be easily represent as a binary operation, so we decide to get rid of it and instead use binary operation, which is more common kind of operation, to implement it.
+
+One interesting and comlicated construction in expression is Table Constructor. Table Constructor could be no different as a constant, but the purpose is constructing a new domain with some scoped mutable variables within. Therefore, we distract the symbol ``\{\}" out of constants. In this case, compiler will allocate a new scope once it meets token``\{\}". We can also treat it as creating a new anonymous table, just as what new objects does in JavaScript language.  
+
+Additional, mutable variables and constants are included. Variables are now represented by a more common format: e1[e2], which we also call it table select. In this format, we just look up the variable e2 in the table e1 and return relative value(nil if it doesn't exist). What is more, we can use reserved word \_ENV to represent the globle table. Specifically,
+\begin{center}
+\tt x = i\\ 
+\end{center}
+equals to
+\begin{center}
+\_ENV[x] = i\\
+\end{center}
+
+
+'Hello' or `hello'.
+
+
+
+% ---------------------------[FW1][SYNTAX]Expression------------------------------
+\begin{figure}
+\caption{Expressions in Featherweight Lua}
+\label{fig:FWLuaExp}
+\[
+\begin{array}{llr}
+  \mydefhead{e,f ::=\qquad\qquad\qquad\qquad}{Expressions}
+  \mydefcase{\{\}}{new allocation}
+  \mydefcase{c}{constant}
+  \mydefcase{e[e]}{table select}
+  \mydefcase{e ~op~ e}{binary operations}
+  \\
+  \mydefhead{c ::=\qquad\qquad\qquad\qquad}{Constants}
+  \mydefcase{i}{integer}
+  \mydefcase{\tt true}{boolean true}
+  \mydefcase{\tt false}{boolean false}
+  \mydefcase{s}{string}
+  \mydefcase{nil}{nil value}
+  \\
+  op ::= & + ~|~ - ~|~ * ~|~ / ~|~ .. ~|~ > ~|~ >= ~|~ < ~|~ <= ~|~ == ~|~ ~= ~|~ and ~|~ or & \mbox{\emph{Binary operators}} \\
+\end{array}
+\]
+\end{figure}
+
+
+% ----------------------------[FW1][SEMANTIC]Expression----------------------------
+\newcommand{\ssrule}[3]{
+  \rel{#1} &
+  \frac{\strut\begin{array}{@{}c@{}} #2 \end{array}}
+       {\strut\begin{array}{@{}c@{}} #3 \end{array}}
+   \\~\\
+}
+\newcommand{\semanticExp}[3]{{#1},{#2} \downarrow {#3}}
+\newcommand{\semanticExpRaw}[3]{{#1},{#2} \downarrow {#3}}
+\newcommand{\ctxt}{C}
+\newcommand{\true}{\mbox{\tt true}}
+\newcommand{\false}{\mbox{\tt false}}
+
+\begin{figure}[H]
+\caption{Semantics for Expressions}
+{\bf Runtime Syntax:}
+\label{fig:ExpSem}
+\[
+\begin{array}{rclcl}
+  \sigma & \in & {Store} \quad  & = & \quad {variable} ~\rightarrow ~v \\
+  \\
+\end{array}
+\]
+
+{\bf Evaluation Rules:~~~ \fbox{$\semanticExpRaw{e}{\sigma}{e'}$}} \\
+\[
+\begin{array}{r@{\qquad\qquad}c}
+\ssrule{EXP-CONST}{
+}{
+  \semanticExp{c}{\sigma}{c}
+}
+\ssrule{EXP-BINOP}{
+  \semanticExp{e_1}{\sigma}{v_1} \quad
+  \semanticExp{e_2}{\sigma}{v_2} \\
+  v = v_1 ~op~ v_2
+}{
+  \semanticExp{e_1 ~op~ e_2}{\sigma}{v}
+}
+\ssrule{EXP-GET}{
+  \semanticExp{e_1}{\sigma}{T} \quad
+  \semanticExp{e_2}{\sigma}{v} \\
+  v \in T \quad
+  v = T(v)
+}{
+  \semanticExp{e_1[e_2]}{\sigma}{v}
+}
+\ssrule{EXP-GET-NIL}{
+  \semanticExp{e_1}{\sigma}{T} \quad
+  \semanticExp{e_2}{\sigma}{v} \\
+  v \notin T 
+}{
+  \semanticExp{e_1[e_2]}{\sigma}{nil}
+}
+\ssrule{EXP-NEW}{
+}{
+  \semanticExp{\{\}}{\sigma}{\{\}}
+}
+%\ssrule{EXP-FUNC-DEF}{
+%}{
+%  \semanticExp{\lambda x.e}{\sigma}{\lambda x.e}
+%}
+%\ssrule{EXP-FUNC-CALL}{
+%  v \in {\sigma}\\
+%  \semanticExp{e_1}{\sigma}{\lambda x.e'} \quad
+%  \semanticExp{e_2}{\sigma}{v_1} \\
+%  \semanticExp{\lambda v_1.e'}{\sigma}{v}
+%}{
+%  \semanticExp{e_1~e_2}{\sigma}{v}
+%}
+\end{array}
+\]
+\end{figure}
+
+
+\subsection{Statements}
+
+
+
+% -----------------------------[FW1][SYNTAX]Statement------------------------------
+\begin{figure}
+\caption{Statements in Featherweight Lua V1}
+\label{fig:FWLuaStat}
+\[
+\begin{array}{llr}
+  \mydefhead{s ::=\qquad\qquad\qquad\qquad}{Statements}
+  \mydefcase{a}{register}
+  \mydefcase{e[e] = e}{object update}
+  \mydefcase{\ife {e_1} {e_2} {e_3}}{conditional}
+  \mydefcase{{\tt return} ~e}{return statement}
+  \\
+  \mydefhead{a \qquad\qquad\qquad\qquad}{Registers}
+  \mydefhead{e \qquad\qquad\qquad\qquad}{Expressions}
+  \\
+\end{array}
+\]
+\end{figure}
+
+% ----------------------------[FW1][SEMANTIC]Statement----------------------------
+\newcommand{\semanticStat}[3]{{#1},{#2} \Downarrow {#3}}
+\newcommand{\semanticStatRaw}[3]{{#1},{#2} \Downarrow {#3}}
+
+\begin{figure}[H]
+\caption{Semantics for Statements}
+{\bf Runtime Syntax:}
+\label{fig:StatSem}
+\[
+\begin{array}{rclcl}
+  \sigma & \in & {Store} \quad  & = & \quad {register} ~\rightarrow ~{T} \\
+  \\
+\end{array}
+\]
+
+{\bf Evaluation Rules:~~~ \fbox{$\semanticStatRaw{e}{\sigma}{\sigma'}$}} \\
+\[
+\begin{array}{r@{\qquad\qquad}c}
+\ssrule{STAT-REG}{
+  \semanticExp{a}{\sigma}{v}
+}{
+  \semanticStat{a}{\sigma}{\sigma}
+}
+\ssrule{STAT-EMPTY}{
+}{
+  \semanticStat{;~}{\sigma}{\sigma}
+}
+\ssrule{STAT-SET}{
+  \semanticExp{e_1}{\sigma}{v_1} \quad
+  \semanticExp{e_2}{\sigma}{v_2} \quad
+  \semanticExp{e_3}{\sigma}{v_3} \\
+  R = \sigma(v_1)\\
+  R' = R~+~(v_2 := v_3)
+}{
+  \semanticStat{e_1[e_2] = e_3}{\sigma}{\sigma'[v_1 := R']}
+}
+\ssrule{STAT-RETURN}{
+  \semanticExp{e}{\sigma}{v} \\ 
+}{
+  \semanticStat{{\tt return}~e}{\sigma}{\sigma'[a = v]}
+}
+\ssrule{STAT-COND-T}{
+  \semanticStat{s_1}{\sigma}{\sigma'} \\
+}{
+  \semanticStat{{\tt True} ~s_1 ~s_2}{\sigma}{\sigma'}
+}
+\ssrule{STAT-COND-F}{
+  \semanticStat{s_2}{\sigma}{\sigma'} \\
+}{
+  \semanticStat{{\tt False} ~s_1 ~s_2}{\sigma}{\sigma'}
+}
+\end{array}
+\]
+\end{figure}
+
+
+\section{Further works in FWLua}
+\subsection{Adding Functions}
+Although Lua is a extension programming language and is simple, its full syntax is complex and a little wierd. It would be hard to prove a formal security guarantees. Therefore, to make it simpler to read and prove, we need to simplify the original full syntax. Here we call it Featherweight Lua (FWLua). In FWLua, we remove those unnecessary syntax and make a desugering. Only basic and key syntax are remained in the syntax of FWLua.  
+
+
+% ---------------------------------[FW2][SYNTAX]----------------------------------
+\newcommand{\abFunction}[2]{{\tt function} ~{#1}~{#2}~{\tt end}}
+\begin{figure}
+\caption{Full Syntax in Featherweight Lua V2}
+\label{fig:FW2Syx}
+\[
+  \begin{array}{llr}
+  \mydefhead{e ::=\qquad\qquad\qquad\qquad}{Expressions}
+  \mydefcase{a}{register}
+  \mydefcase{c}{constant}
+  \mydefcase{\{\}}{new allocation}
+  \mydefcase{e[e]}{table select}
+  \mydefcase{e[e] = e}{table update}
+  \mydefcase{e ~op~ e}{binary operation}
+  \mydefcase{\abFunction x e}{abstraction}
+  \mydefcase{e(e)}{function application}
+  \\
+  \\
+  \mydefhead{c ::=\qquad\qquad\qquad\qquad}{Constants}
+  \mydefcase{i}{integer}
+  \mydefcase{\tt true}{boolean true}
+  \mydefcase{\tt false}{boolean false}
+  \mydefcase{s}{string}
+  \mydefcase{nil}{nil value}
+  \\
+  \mydefhead{a \qquad\qquad\qquad\qquad}{Registers}
+  \mydefhead{x \qquad\qquad\qquad\qquad}{Variables}
+  \\
+  op ::= & + ~|~ - ~|~ * ~|~ / ~|~ .. ~|~ > ~|~ >= ~|~ < ~|~ <= ~|~ == ~|~ ~= ~|~ and ~|~ or & \mbox{\emph{Binary operators}} \\
+\end{array}
+\]
+\end{figure}
+
+% -------------------------------[FW2][SEMANTIC]--------------------------------
+\newcommand{\semanticFullRaw}[4]{{#1},{#2} \Downarrow {#3},{#4}}
+\newcommand{\semanticFull}[4]{{#1},{#2} \Downarrow {#3}, {#4}}
+
+\begin{figure}[P]
+\caption{Semantics of Featherweight Lua V2}
+{\bf Runtime Syntax:}
+\label{fig:FW2Sem}
+\[
+\begin{array}{rclcl}
+  \sigma & \in & {Store} \quad  & = & \quad {register} ~\rightarrow ~{table} \\
+  T & \in & {Table} \quad  & = & \quad {string} ~\rightarrow ~{value} \\
+  v & \in & {Value} \quad & ::= & \quad constant~|~ register ~|~ function~|~table \\
+  x & \in & {Name} \quad & ::= & \quad string \\
+  \\
+\end{array}
+\]
+
+{\bf Evaluation Rules:~~~ \fbox{$\semanticFullRaw {e}{\sigma}{v}{\sigma'}$}} \\
+\[
+\begin{array}{r@{\qquad\qquad}c}
+\ssrule{FW-VALUE}{
+}{
+  \semanticFull {v}{\sigma} {v}{\sigma}
+}
+\ssrule{FW-NEW}{
+  a \in dom(a)
+}{
+  \semanticFull{\{\}}{\sigma}{a}{\sigma[a := \{\}]}
+}
+\ssrule{FW-GET}{
+  \semanticFull{e_1}{\sigma}{a}{\sigma_1} \quad
+  \semanticFull{e_2}{\sigma_1}{s}{\sigma'} \\
+  T = \sigma'(a)\quad
+  v = T[s]\\
+  a \in dom(\sigma') \quad
+  s \in dom(T)\\
+  
+}{
+  \semanticFull{e_1[e_2]}{\sigma}{v}{\sigma'}
+}
+\ssrule{FW-GET-NIL}{
+  \semanticFull{e_1}{\sigma}{a}{\sigma_1} \quad
+  \semanticFull{e_2}{\sigma_1}{s}{\sigma'} \\
+  s \notin dom(\sigma'[a]) 
+}{
+  \semanticFull{e_1[e_2]}{\sigma}{nil}{\sigma'}
+}
+\ssrule{FW-SET}{
+  \semanticFull{e_1}{\sigma}{a}{\sigma_1} \quad
+  \semanticFull{e_2}{\sigma_1}{s}{\sigma_2} \quad
+  \semanticFull{e_3}{\sigma_2}{v}{\sigma_3} \\
+  a \in dom({\sigma}_3) \quad
+  T = \sigma_3[a]\\
+  T' = T~+~(s := v)\quad
+  \sigma' = \sigma_3[a:=T']
+}{
+  \semanticFull{e_1[e_2] = e_3}{\sigma}{nil}{\sigma'}
+}
+\ssrule{FW-BINOP}{
+  \semanticFull{e_1}{\sigma}{v_1}{\sigma_1} \quad
+  \semanticFull{e_2}{\sigma_1}{v_2}{\sigma'} \\
+  v = v_1 ~op~ v_2
+}{
+  \semanticFull{e_1 ~op~ e_2}{\sigma}{v}{\sigma'}
+}
+\ssrule{FW-FUNC-CALL}{
+  \semanticFull{e_1}{\sigma}{{\tt function} ~x ~e' ~{\tt end}}{\sigma_1} \\
+  \semanticFull{e_2}{\sigma_1}{v_1}{\sigma_2} \\
+  \semanticFull{e[x:=v_1]}{\sigma_2}{v}{\sigma'} 
+}{
+  \semanticFull{e_2(e_1)}{\sigma}{v}{\sigma'} 
+}
+\end{array}
+\]
+\end{figure}
+
+
+\subsection{Metatables and Metamethods}
+
+% ---------------------------------[FW2.2][SYNTAX]----------------------------------
+\begin{figure}
+\caption{Full Syntax in Featherweight Lua V2.2}
+\label{fig:FW2Syx}
+\[
+  \begin{array}{llr}
+  \mydefhead{e ::=\qquad\qquad\qquad\qquad}{Expressions}
+  \mydefcase{a}{register}
+  \mydefcase{c}{constant}
+  \mydefcase{\{\}}{new allocation}
+  \mydefcase{{\tt rawget}(e_1,e_2)}{table select}
+  \mydefcase{{\tt rawset}(e_1,e_2,e_3)}{table update}
+  \mydefcase{e ~{\tt binop}~ e}{binary operation}
+  \mydefcase{\abFunction x e}{abstraction}
+  \mydefcase{e(e)}{function application}
+  \\
+  \\
+  \mydefhead{c ::=\qquad\qquad\qquad\qquad}{Constants}
+  \mydefcase{i}{integer}
+  \mydefcase{s}{string}
+  \mydefcase{nil}{nil value}
+  \\
+  \mydefhead{a \qquad\qquad\qquad\qquad}{Registers}
+  \mydefhead{x \qquad\qquad\qquad\qquad}{Variables}
+  \\
+  op ::= & + ~|~ - ~|~ * ~|~ / ~|~ .. ~|~ > ~|~ >= ~|~ < ~|~ <= ~|~ == ~|~ ~= ~|~ and ~|~ or & \mbox{\emph{Binary operators}} \\
+\end{array}
+\]
+\end{figure}
+
+% -------------------------------[FW2.1][HOOKS]-----------------------------------
+
+\begin{figure}[P]
+\caption{Matatable Event Types}
+{\bf Basic Events}
+\label{fig:FW2.1hooks}
+\[
+\begin{array}{rclcl}
+  {\tt \_\_index} & :: & {table} ~\rightarrow ~ {string} ~\rightarrow ~ {value} \\
+  {\tt \_\_newindex}   & :: &  {table} ~\rightarrow ~{string} ~\rightarrow ~{value} ~\rightarrow ~{\tt nil}\\
+  {\tt \_\_len}   & :: &  {value} ~\rightarrow ~{value}\\
+  {\tt \_\_call}   & :: &  {value} ~\rightarrow ~{value}\\
+  {\tt \_\_metatable}   & :: &  {table} ~\rightarrow ~{string} ~\rightarrow ~{value}\\
+\end{array}
+\]
+
+{\bf Mathematic Operators}
+\[
+\begin{array}{rclcl}
+  {\tt \_\_unm} & :: &  {value} ~\rightarrow ~{value}\\
+  {\tt \_\_add}   & :: &  {value} ~\rightarrow ~{value}~\rightarrow ~{value}\\
+  {\tt \_\_sub}   & :: &  {value} ~\rightarrow ~{value}~\rightarrow ~{value}\\
+  {\tt \_\_mul}   & :: &  {value} ~\rightarrow ~{value}~\rightarrow ~{value}\\
+  {\tt \_\_div}   & :: &  {value} ~\rightarrow ~{value}~\rightarrow ~{value}\\
+  {\tt \_\_mod}   & :: &  {value} ~\rightarrow ~{value}~\rightarrow ~{value}\\
+  {\tt \_\_pow}   & :: &  {value} ~\rightarrow ~{value}~\rightarrow ~{value}\\
+  {\tt \_\_concat}   & :: &  {value} ~\rightarrow ~{value}~\rightarrow ~{value}\\
+\end{array}
+\]
+
+{\bf Equivalence Comparison Operators}
+\[
+\begin{array}{rclcl}
+  {\tt \_\_eq} & :: & {value} ~\rightarrow ~ {value} ~\rightarrow ~ {value}\\
+  {\tt \_\_lt}   & :: &  {value} ~\rightarrow ~{value} ~\rightarrow ~{value}\\
+  {\tt \_\_le}   & :: &  {value} ~\rightarrow ~{value} ~\rightarrow ~{value}\\
+\end{array}
+\]
+\end{figure}
+
+\newcommand{\aFunction}[2]{\lambda{#1}.{#2}}
+
+% -------------------------------[FW2.1][METAMETHODS]---------------------------
+
+\begin{figure}[P]
+\caption{Definitions of Functions and Events}
+{\bf Default Metatable}
+\label{fig:FW2.1metamethods}
+\[
+\begin{array}{rclcl}
+{\tt \aFunction{x}{e}} & \xlongequal[]{def}  & 
+          {\tt function} ~x~{\tt return}~e~{\tt end}\\
+
+  {\tt \_\_index}  & \xlongequal[]{def} & \aFunction{T}{\aFunction{s}{\tt nil}}\\
+  
+  {\tt \_\_newindex} & \xlongequal[]{def}  & \aFunction{T}{\aFunction{s}{\aFunction{v}{{\tt rawset}(T,s,v)}}}\\
+
+  {\tt \_\_len}   & \xlongequal[]{def}  & \\
+       
+ 
+  {\tt \_\_call}   & \xlongequal[]{def}  & \\
+         
+  
+  {\tt \_\_metatable}   & \xlongequal[]{def}  &  {\tt nil}\\
+
+ {\tt \_\_unm}   & \xlongequal[]{def}  & {\tt nil}\\
+ {\tt \_\_add}   & \xlongequal[]{def}  & {\tt nil} \\
+ {\tt \_\_sub}   & \xlongequal[]{def}  & {\tt nil} \\
+ {\tt \_\_mul}   & \xlongequal[]{def}  & {\tt nil} \\
+ {\tt \_\_div}   & \xlongequal[]{def}  & {\tt nil} \\
+ {\tt \_\_mod}   & \xlongequal[]{def}  & {\tt nil} \\
+ {\tt \_\_pow}   & \xlongequal[]{def}  & {\tt nil} \\
+ {\tt \_\_concat}   & \xlongequal[]{def}  & {\tt nil} \\
+         
+\end{array}
+\]
+\end{figure}
+
+
+
+
+
+
+% -------------------------------[FW2.1][SEMANTIC]--------------------------------
+\newcommand{\metaSemanticFull}[6]{{#1}, {#2}, {#3} \Downarrow {#4}, {#5}, {#6}}
+
+\begin{figure}[P]
+\caption{Semantics of Featherweight Lua V2.1}
+{\bf Runtime Syntax:}
+\label{fig:FW2.1Sem}
+\[
+\begin{array}{rclcl}
+  \sigma & \in & {Store} \quad  & = & \quad {register} ~\rightarrow ~{table} \\
+  m & \in & {Metatable} \quad  & = & \quad {string} ~\rightarrow ~{function} \\
+  T & \in & {Table} \quad  & = & \quad {string} ~\rightarrow ~{value} \\
+  f & \in & {Function} \quad & ::= & \quad function \\
+  r & \in & {Raw~Value} \quad & ::= & \quad constant~|~ register ~|~ f~ \\
+  v & \in & {Value} \quad & ::= & \quad r~|~ Table~ \\
+  x & \in & {Name} \quad & ::= & \quad string 
+  \\
+\end{array}
+\]
+
+{\bf Evaluation Rules:~~~ \fbox{$\semanticFull {e}{\sigma}{v}{\sigma'}$}} \\
+\[
+\begin{array}{r@{\qquad\qquad}c}
+\ssrule{FW-VALUE}{
+}{
+  \semanticFull {v}{\sigma} {v}{\sigma}
+}
+\ssrule{FW-NEW}{
+  a \notin dom(\sigma)
+}{
+  \semanticFull {\{\}} {\sigma}   {a} {\sigma[a := \{\}]}
+}
+% \ssrule{FW-REGISTER}{
+%   a \in dom(\sigma) \quad T = \sigma(a)
+% }{
+%   \semanticFull {a} {\sigma}   {T} {\sigma}
+% }
+\ssrule{FW-RAWGET}{
+  \semanticFull{e_1}  {\sigma}    {a}  {\sigma_1} \quad
+  \semanticFull{e_2}  {\sigma_1}    {s}  {\sigma'} \\
+  T = \sigma'(a)\quad
+  v = T(s)\\
+  
+}{
+  \semanticFull {{\tt rawget}(e_1,e_2)} {\sigma}   {v} {\sigma'}
+}
+\ssrule{FW-RAWSET}{
+  \semanticFull{e_1}{\sigma}{a}{\sigma_1} \quad
+  \semanticFull{e_2}{\sigma_1}{s}{\sigma_2} \quad
+  \semanticFull{e_3}{\sigma_2}{v}{\sigma_3} \\
+  T = \sigma_3[a] \quad
+  T' = T~+~(s := v) \\
+  \sigma' = \sigma_3[a:=T']
+}{
+  \semanticFull{{\tt rawset}(e_1,e_2,e_3)}{\sigma}{T'}{\sigma'}
+}
+% \ssrule{FW-SET-UPDATE}{
+%   \semanticFull{e_1}{\sigma}{a}{\sigma_1} \quad
+%   \semanticFull{e_2}{\sigma_1}{s}{\sigma_2} \quad
+%   \semanticFull{e_3}{\sigma_2}{v}{\sigma_3} \\
+%   T = \sigma_3[a] \quad  s \in dom(T)\\
+ 
+%    \semanticFull{{\tt rawset}(e_1,e_2,e_3)}{\sigma_3}{T'}{\sigma'} \\
+% }{
+%   \semanticFull{e_1[e_2] = e_3}{\sigma}{\tt nil}{\sigma'}
+% }
+% \ssrule{FW-SET-NEW}{
+%   \semanticFull{e_1}{\sigma}{a}{\sigma_1} \quad
+%   \semanticFull{e_2}{\sigma_1}{s}{\sigma_2} \quad
+%   \semanticFull{e_3}{\sigma_2}{v}{\sigma_3} \\
+%   T = \sigma_3[a] \quad  s \notin dom(T)\\
+%   f = T[{``\tt {\_}MT}"][{\tt ``\_\_newindex"}]\\
+%  
+%    \semanticFull{((f(T))(s))(v)}{\sigma_3}{v}{\sigma'} \\
+% }{
+%   \semanticFull{e_1[e_2] = e_3}{\sigma}{\tt nil}{\sigma'}
+% }
+\ssrule{FW-BINOP-RAW}{
+  \semanticFull{e_1}{\sigma}{r_1}{\sigma_1} \quad
+  \semanticFull{e_2}{\sigma_1}{r_2}{\sigma'} \\
+  v = r_1 ~op~ r_2
+}{
+  \semanticFull{e_1 ~op~ e_2}{\sigma}{v}{\sigma'}
+}
+\ssrule{FW-BINOP-LEFT}{
+  \semanticFull{e_1}{\sigma}{T}{\sigma_1} \quad
+  \semanticFull{e_2}{\sigma_1}{v_1}{\sigma_2} \\
+  m = T[{\tt ``{\_}MT"}]\quad
+  f = m[{\tt translate}(op)]\\
+   \semanticFull{(f(T))(v_1)}  {\sigma_2}    {v_2} {\sigma'} \\
+}{
+  \semanticFull{e_1 ~op~ e_2}{\sigma}{v_2}{\sigma'}
+}
+\ssrule{FW-BINOP-RIGHT}{
+  \semanticFull{e_1}{\sigma}{r}{\sigma_1} \quad
+  \semanticFull{e_2}{\sigma_1}{T}{\sigma_2} \\
+  m = T[{\tt ``{\_}MT"}]\quad
+  f = m[{\tt translate}(op)]\\
+   \semanticFull{(f(r))(T)}  {\sigma_2}    {v} {\sigma'} \\
+}{
+  \semanticFull{e_1 ~op~ e_2}{\sigma}{v}{\sigma'}
+}
+\ssrule{FW-FUNC-CALL}{
+  \semanticFull{e_1}{\sigma}{{\tt function} ~x ~e' ~{\tt end}}{\sigma_1} \\
+  \semanticFull{e_2}{\sigma_1}{v_1}{\sigma_2} \\
+  \semanticFull{e[x:=v_1]}{\sigma_2}{v}{\sigma'} 
+}{
+  \semanticFull{e_1(e_2)}{\sigma}{v}{\sigma'} 
+}
+\end{array}
+\]
+\end{figure}
+\subsection{Desugaring}
+% -------------------------------------[DESUGARING]---------------------------------
+
+\newcommand{\desugar}[2]{{#1} & \xlongequal[]{def} & {\begin{array}{@{}l@{}} #2 \end{array}}\\}
+
+\begin{figure}[P]
+\caption{Desugaring Lua to FW Lua}
+{\bf Desugaring}
+\label{fig:FW2.1metamethods}
+\[
+\begin{array}{rclcl}
+
+\desugar{
+    \aFunction{a}{b}
+}{
+    {\tt function} ~a~ {\tt return} ~b~
+}
+\\
+\desugar{
+     e_1[e_2]
+}{
+    {\lambda}e_1.{\lambda}e_2.\\
+    ~~{\tt if}~ e_1[e_2] ~\sim= {\tt nil} ~ {\tt then}\\
+    ~~~~{\tt rawget}(e_1, e_2,e_3) ~\\
+    ~~{\tt else}\\
+    ~~~~{\tt local}~f = {\tt getmetatable}(e_1).{\tt{\_}{\_}index}~\\
+    ~~~~f(e_1,e_2)\\ 
+    ~~{\tt end}
+}
+\\
+\desugar{
+     e_1[e_2]=e_3
+}{
+    {\lambda}e_1.{\lambda}e_2.{\lambda}e_3.\\
+    ~~{\tt if}~ e_1[e_2] ~\sim= {\tt nil} ~ {\tt then}\\
+    ~~~~{\tt rawset}(e_1, e_2,e_3) ~\\
+    ~~{\tt else}\\
+    ~~~~{\tt local}~f = {\tt getmetatable}(e_1).{\tt{\_}{\_}newindex}~\\
+    ~~~~f(e_1,e_2,e_3)\\ 
+    ~~{\tt end}
+}
+\\
+
+
+\end{array}
+\]
+\end{figure}
+\section{Implementation}
+
+\section{Related work}
+
+\section{Conclusion}
+
+
+\end{document}
