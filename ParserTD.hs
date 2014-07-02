@@ -2,13 +2,13 @@ module ParserTD (
   parseExp,
   printParseTree
 ) where
+import System.Environment
 import SymTab
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Text.ParserCombinators.Parsec
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Monad.ST
-import Data.STRef
 import System.Environment
 
 transOp s = case s of
@@ -35,17 +35,17 @@ transUnop s = case s of
   "#"   -> Num
   o     -> error $ "Unexpected operator " ++ o
 
-fileP :: GenParser Char st Statement
+fileP :: GenParser Char st Expression
 fileP = do
-  prog <- sequenceStatement
+  prog <- sequenceExpression
   eof
   return prog
 
--- STATEMENT ---------------------------------------------------------
+-- EXPRESSION ---------------------------------------------------------
 
-sequenceStatement = do
+sequenceExpression = do
   spaces
-  st <- singleStatement
+  st <- singleExpression
   spaces
   char ';'
   rest <- optionMaybe restSeq
@@ -54,67 +54,48 @@ sequenceStatement = do
     Just st' -> Seq st st')
 
 restSeq = do
-  sequenceStatement
+  sequenceExpression
 
-singleStatement = assignmentStatement
+singleExpression = rsetExpression
               <?> "condition, loop or assignment statement"
 
-assignmentStatement = do
-  name <- varname
+rsetExpression = do
+  spaces
+  tbl <- tableName
+  key <- keyName
   spaces
   char '='
   spaces
   expr <- expression
-  return $ Assign name expr
+  return $ Rset tbl key expr
+  
+tableName = do
+  char '('
+  spaces
+  name <- optionMaybe varName
+  spaces
+  char ')'
+  case name of
+    Just "" -> return $ Val (VReg "_ENV")
+    Just s -> return $ Val (VReg s)
 
-varname = do
+keyName = do
+  char '['
+  spaces
+  name <- stringTerm
+  spaces
+  char ']'
+  return $ Val name
+
+varName = do
   s <- many $ alphaNum
   return s
 
--- TABLES -------------------------------------------------------------
 
-tableSequenceStatement = do
-  spaces
-  st <- tableAssignStatement
-  spaces
-  char ';'                       -- SUGER
-  spaces
-  rest <- optionMaybe restTab
-  return (case rest of
-    Nothing   -> st
-    Just st' -> Seq st st')
-    
-tableAssignStatement = assignmentStatement
-    
-restTab = do
-  tableSequenceStatement
-
-
-
--- EXPRESSION ---------------------------------------------------------
-
-expression = tableConstructor
-         <|> try(unopExp)
-         <|> binopExp
+expression = valueTerm
 
          <?> "expression"
 
-tableConstructor = do
-  spaces
-  char '{'
-  spaces
-  stat <- tableSequenceStatement
-  spaces
-  char '}'
-  return (Tconst stat)
-
-
-prefixExp = valueTerm
-        <|> parenExpression
-        <|> try(variable)
-        <|> globalVariable
-        <?>"term or parenExpression"
-         
 valueTerm = do
   t <- numberTerm
    <|> try(booleanTerm)
@@ -126,117 +107,13 @@ numberTerm = do
 booleanTerm = do
   bStr <- string "true" <|> string "false" <|> string "skip"
   return $ case bStr of
-    "true" -> VBool True
-    "false" -> VBool False
-    "skip" -> VBool False
+    "true" -> VTrue
+    "false" -> VFalse
 stringTerm = do 
   char '"'
   str <- many $ noneOf "\""
   char '"'
   return $ VStr str
-
-parenExpression = do
-  char '('
-  spaces
-  expr <- expression
-  spaces
-  char ')'
-  return expr
-
-globalVariable = do
-  t <- many $ alphaNum
-  return $ Var t Nil
-
-
-variable = do
-  t <- tblVar
-  rest <- optionMaybe restVar
-  case rest of
-    Just value -> do
-      return $ Var value t
-    Nothing    -> return t
-
-tblVar = do
-  t <- many $ alphaNum
-  char '.'
-  k <- many $ alphaNum
-  return $ Var k (Tbl t)
-  
-restVar = do
-  char '.'
-  k <- many $ alphaNum
-  return k
-
-unopExp = do
-  nop <- unopSym
-  spaces
-  expr <- expression
-  return $ Nop (transUnop nop) expr
-
-binopExp = do
-  spaces
-  expr <- level2Expression
-  spaces
-  rest <- optionMaybe relationSym
-  return (case rest of 
-    Nothing -> expr
-    Just (op, expr') -> Op expr (transOp op) expr')
-    
-level2Expression = do
-  spaces
-  expr <- level1Expression
-  spaces
-  add <- optionMaybe augmentSym
-  case add of
-    Nothing -> return expr
-    Just (op, expr') -> return $ Op expr (transOp op) expr'
-
-
-  
-level1Expression = do
-  spaces
-  expr <- prefixExp
-  spaces
-  add <- optionMaybe multipleSym
-  case add of
-    Nothing -> return expr
-    Just (op, expr') -> return $ Op expr (transOp op) expr'
-  
-
-
-
-unopSym = do
-  symbol <- string "-"
-        <|> string "not"
-        <|> string "#"
-  return symbol
-
-   
-relationSym = do
-  symbol <- try (string "<=")
-        <|> string "<"
-        <|> try (string ">=")
-        <|> string ">"
-        <|> string "=="
-        <|> string "~="
-        <?> "binary operator"
-  rest <- level2Expression
-  return (symbol, rest)
-
-multipleSym = do
-  symbol <- string "*"
-        <|> string "/"
-  rest <- level2Expression
-  return (symbol, rest)
-  
-augmentSym = do
-  symbol <- string "+"
-        <|> string "-"
-  rest <- level2Expression
-  return (symbol, rest)
-
-
-
 
 
 -- Parsing Method

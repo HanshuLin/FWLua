@@ -5,7 +5,6 @@ module SymTab (
   ErrorMsg,
   Store,
   VType(..),
-  Statement(..),
   Expression(..),
   Unop(..),
   Binop(..),
@@ -29,13 +28,17 @@ data VType = Integer | Boolean | String | Defined
 
 data Value = 
     VNil
-  | VTable Store
+  | Function
+  | VReg String
+  | VTrue
+  | VFalse
   | VInt Integer
-  | VFloat Float
   | VBool Bool
   | VStr String
-  | VFunc VType Expression
+  | VTable Store
   deriving (Show)
+  
+data Function = VFunc Variable Expression
 
 data Variable = Variable VType Name
   deriving (Show)
@@ -46,36 +49,18 @@ data Identifier = Identifier VType Name
 data Parameter = Parameter VType
   deriving (Show)
   
-data Statement = 
-    Seq Statement Statement
-  | Assign Name Expression
-  | Funcall
-  | Label
-  | Break
-  | Goto
-  | Block Statement Statement
-  | While Expression Statement
-  | Repeat Expression Statement
-  | If Expression Statement
-  | For
-  | Function
-  | Local
-  deriving (Show)
-
 data Expression =
-    Nil
-  | Tbl Name
-  | Var Name Expression
-  | Val Value
-  | Op Expression Binop Expression          -- binop
-  | Nop Unop Expression                     -- unop
-  | Tconst Statement                        -- table constructor done!
-
-  | Dot
-  | Fdef
+    Seq Expression Expression
+  | Val Value                                   --Constant
+  | New
+  | Rget Expression Expression
+  | Rset Expression Expression Expression
+  | Opraw Expression Binop Expression
+  -- | Func Expression Expression
+  | Funcall Expression Expression
   deriving (Show)
   
-data Unop = 
+data Unop =
     Neg      -- -
   | Not      -- not
   | Num   -- #

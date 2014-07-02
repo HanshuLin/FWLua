@@ -1,9 +1,1 @@
-i = 3;
-x = 5;
-y = "Hello World";
-z = 5 * (2 + 3);
-t = { x = 4; y = { x = 3;};};
-m = -4;
-blockx = x;
-blocktx = t.x;
-blocktyx = t.y.x;
+(_ENV)["i"] = 3;

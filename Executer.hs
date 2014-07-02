@@ -5,10 +5,8 @@ import SymTab
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Text.ParserCombinators.Parsec
-import Control.Monad.Error
+import Control.Monad.Except
 import System.Environment
-
-import Data.Global
 
 applyOp :: Binop -> Value -> Value -> Either ErrorMsg Value
 applyOp Plus (VInt i) (VInt j) = Right $ VInt $ i + j
@@ -39,78 +37,88 @@ applyUnop :: Unop -> Value -> Either ErrorMsg Value
 applyUnop Neg (VInt i) = Right $ VInt $ -i
 applyUnop Not (VBool i) = Right $ VBool $ not i
 
+evaluate :: Expression -> Store -> Either ErrorMsg (Value, Store)
 
-evalState :: Statement -> Store -> Either ErrorMsg (Value, Store)
-
-evalState (Seq s1 s2) s = do
-  (_, s') <- evalState s1 s
-  result <- evalState s2 s'
+evaluate (Seq e1 e2) s = do
+  (_, s') <- evaluate e1 s
+  result <- evaluate e2 s'
   return result
-  
-evalState (Assign var exp) s = do
-  (v, s1) <- evalExpr exp s
-  s' <- Right $ Map.insert var v s1
+
+evaluate (Val v) s = do
+  return (v, s)
+
+evaluate New s = do
+  return ((VTable Map.empty), s)
+
+evaluate (Rget table key) s = do
+  (a, s1) <- evaluate table s
+  (k, s') <- evaluate key s1
+  t <- pointToTable a s'
+  v <- findVar k t
   return (v, s')
 
+evaluate (Rset table key value) s = do
+  (a, s1) <- evaluate table s
+  (k, s2) <- evaluate key s1
+  (v, s3) <- evaluate value s2
+  t <- pointToTable a s3
+  case k of
+    VStr key -> do
+      t' <- Right $ Map.insert key v t
+      case a of 
+        VReg reg -> do
+          vt <- Right $ VTable t'
+          s' <- Right $ Map.insert reg vt s3
+          return (vt, s')
+        otherwise -> do
+          Left $ "<ERROR><Rawset> False register type"
+    otherwise -> do
+      Left $ "<ERROR><Rawset> False key type"
+
+
+evaluate (Opraw exp1 op exp2) s = do
+  (v1, s1) <- evaluate exp1 s
+  (v2, s') <- evaluate exp2 s1
+  v <- applyOp op v1 v2
+  return (v, s')
+
+evaluate (Funcall f expr) s = error "TBD"
+  -- (expr', s1) <- evaluate f s
+  -- (v1, s2) <- evaluate expr s1
+  -- (v, s') <- evaluate expr' s2
+  -- return (v, s')
 
 
 
-evalExpr :: Expression -> Store -> Either ErrorMsg (Value, Store)
 
-evalExpr Nil s = do
-  return (VNil, s)
+pointToTable :: Value -> Store -> Either ErrorMsg Store
 
-evalExpr (Var var table) s = do
-  t <- findTable table s
-  v <- Right $ Map.lookup var t
-  case v of
-    Just value -> return (value, s)
-    Nothing -> Left $ "ERROR in finding Var"
-
-evalExpr (Val v) s= do
-  return (v, s)
-  
-evalExpr (Op e1 o e2) s = do
-  (v1, s1) <- evalExpr e1 s
-  (v2, s') <- evalExpr e2 s1
-  v <- applyOp o v1 v2
-  return (v, s)
-
-evalExpr (Nop op exp) s = do
-  (v1, s')<- evalExpr exp s
-  v <- applyUnop op v1
-  return (v, s)
-
-evalExpr (Tconst tstate) s = do
-  (v, t) <- evalState tstate Map.empty
-  return ((VTable t), s)
-
-
-findTable :: Expression -> Store -> Either ErrorMsg Store
-
-findTable Nil s = do
-  return s
-  
-findTable (Tbl tbl) s = do 
-  t <- Right $ Map.lookup tbl s
+pointToTable (VReg reg) s = do
+  t <- Right $ Map.lookup reg s
   case t of 
     Just (VTable table) -> return table
-    otherwise -> Left $ "ERROR in finding table"
+    otherwise -> Left $ "<ERROR> Don't have table [" ++ reg ++ "]"
     
-findTable (Var name table) s = do
-  t  <- findTable table s
-  t' <- findTable (Tbl name) t
-  return t'
+findVar :: Value -> Store -> Either ErrorMsg Value
+
+findVar (VStr k) s = do
+  v <- Right $ Map.lookup k s
+  case v of
+    Just value -> return value
+    Nothing -> Left $ "<ERROR> Key [" ++ k ++ "] does not exist in table"
+    
+findVar _ _ = do
+  Left $ "<ERROR> FALSE TYPE"
 
 
 -- Executing Method
-run :: Statement -> Either ErrorMsg (Value, Store)
-run prog = do 
-  globle <- Right $ Map.empty
-  evalState prog globle
+run :: Expression -> Either ErrorMsg (Value, Store)
+run prog = do
+  globle <- Right $ Map.insert "_ENV" (VTable Map.empty) Map.empty
+  evaluate prog globle
 
 excuteFile fileName = do
-  putStrLn $ "[EXECUTED RESULT]"
+  putStrLn $ "[STORE]"
   case fileName of
     Left parseErr -> print parseErr
     Right exp ->
