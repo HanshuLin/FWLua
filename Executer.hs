@@ -7,6 +7,9 @@ import qualified Data.Map as Map
 import Text.ParserCombinators.Parsec
 import Control.Monad.Except
 import System.Environment
+import Data.IORef
+
+tempName = "_ENV"
 
 applyOp :: Binop -> Value -> Value -> Either ErrorMsg Value
 applyOp Plus (VInt i) (VInt j) = Right $ VInt $ i + j
@@ -55,7 +58,13 @@ evaluate (Rget table key) s = do
   (k, s') <- evaluate key s1
   t <- pointToTable a s'
   v <- findVar k t
-  return (v, s')
+  case k of
+    VStr str -> do
+      tempName <- Right $ str
+      return (v, s')
+    otherwise -> do
+      Left $ "<ERROR><Rawset> False register type"
+
 
 evaluate (Rset table key value) s = do
   (a, s1) <- evaluate table s
@@ -69,6 +78,11 @@ evaluate (Rset table key value) s = do
         VReg reg -> do
           vt <- Right $ VTable t'
           s' <- Right $ Map.insert reg vt s3
+          return (vt, s')
+        VTable tbl -> do
+          vt <- Right $ VTable t'
+          key <- Right $ tempName
+          s' <- Right $ Map.insert key vt s3
           return (vt, s')
         otherwise -> do
           Left $ "<ERROR><Rawset> False register type"
@@ -89,6 +103,11 @@ evaluate (Funcall f expr) s = error "TBD"
   -- return (v, s')
 
 
+evaluateReg :: Expression -> Store -> Either ErrorMsg (Value, Store)
+evaluateReg (Val reg) s = do
+  return (reg, s)
+evaluateReg (Rget table (Val (VStr key))) s = do
+  return ((VReg key), s)
 
 
 pointToTable :: Value -> Store -> Either ErrorMsg Store
@@ -98,6 +117,11 @@ pointToTable (VReg reg) s = do
   case t of 
     Just (VTable table) -> return table
     otherwise -> Left $ "<ERROR> Don't have table [" ++ reg ++ "]"
+    
+pointToTable (VTable tbl) s = do
+  return tbl
+  
+
     
 findVar :: Value -> Store -> Either ErrorMsg Value
 
@@ -114,8 +138,10 @@ findVar _ _ = do
 -- Executing Method
 run :: Expression -> Either ErrorMsg (Value, Store)
 run prog = do
+  reg <- Right $ newIORef tempName
   globle <- Right $ Map.insert "_ENV" (VTable Map.empty) Map.empty
   evaluate prog globle
+
 
 excuteFile fileName = do
   putStrLn $ "[STORE]"

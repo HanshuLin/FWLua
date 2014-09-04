@@ -10,6 +10,7 @@ import Text.ParserCombinators.Parsec
 import Control.Monad.Except
 import Control.Monad.ST
 import System.Environment
+import Data.List
 
 transOp s = case s of
   "+"   -> Plus
@@ -56,47 +57,75 @@ sequenceExpression = do
 restSeq = do
   sequenceExpression
 
-singleExpression = rsetExpression
-              <?> "condition, loop or assignment statement"
+singleExpression = expression
+
+expression = try(rgetExpression)
+         <|> try(rsetExpression)
+         <|> try(funcExpression)
+         <|> try(binopExp)
+         <|> try(specialExpression)
+         <|> try(constantExpression)
+         <|> tableConst
+         <?> "rawset, rawget, constant or {}"
+              
+funcExpression = do
+  spaces
+  string "function"
+  spaces
+  var <- variable
+  spaces
+  exprs <- expression
+  spaces
+  string "end"
+  spaces
+  return $ Val $ VFunc var exprs
+  
+variable = do
+  str <- many $ noneOf "\""
+  return $ Variable str
 
 rsetExpression = do
   spaces
-  tbl <- tableName
-  key <- keyName
-  spaces
-  char '='
-  spaces
-  expr <- expression
-  return $ Rset tbl key expr
-  
-tableName = do
+  string "rawset"
   char '('
-  spaces
-  name <- optionMaybe varName
+  tbl <- expression
+  char ','
+  key <- expression
+  char ','
+  val <- expression
   spaces
   char ')'
-  case name of
-    Just "" -> return $ Val (VReg "_ENV")
-    Just s -> return $ Val (VReg s)
-
-keyName = do
-  char '['
+  return $ Rset tbl key val
+  
+rgetExpression = do
   spaces
-  name <- stringTerm
+  string "rawget"
+  char '('
+  tbl <- expression
+  char ','
+  key <- expression
+  char ')'
   spaces
-  char ']'
-  return $ Val name
+  return $ Rget tbl key
+  
+tableConst = do
+  spaces
+  char '{'
+  spaces
+  char '}'
+  spaces
+  return New
 
-varName = do
-  s <- many $ alphaNum
-  return s
+specialExpression = globalVar
 
+globalVar = do
+  spaces
+  string "_ENV"
+  spaces
+  return $ Val (VReg "_ENV")
 
-expression = valueTerm
-
-         <?> "expression"
-
-valueTerm = do
+constantExpression = do
+  spaces
   t <- numberTerm
    <|> try(booleanTerm)
    <|> try(stringTerm)
@@ -114,7 +143,63 @@ stringTerm = do
   str <- many $ noneOf "\""
   char '"'
   return $ VStr str
+  
+  
+         
 
+binopExp = do
+  spaces
+  expr <- level2Expression
+  spaces
+  rest <- optionMaybe relationSym
+  return (case rest of 
+    Nothing -> expr
+    Just (op, expr') -> Opraw expr (transOp op) expr')
+    
+level2Expression = do
+  spaces
+  expr <- level1Expression
+  spaces
+  add <- optionMaybe augmentSym
+  case add of
+    Nothing -> return expr
+    Just (op, expr') -> return $ Opraw expr (transOp op) expr'
+  
+level1Expression = do
+  spaces
+  expr <- prefixExp
+  spaces
+  add <- optionMaybe multipleSym
+  case add of
+    Nothing -> return expr
+    Just (op, expr') -> return $ Opraw expr (transOp op) expr'
+    
+prefixExp = constantExpression
+        <|> rgetExpression
+    
+
+relationSym = do
+  symbol <- try (string "<=")
+        <|> string "<"
+        <|> try (string ">=")
+        <|> string ">"
+        <|> string "=="
+        <|> string "~="
+        <?> "binary operator"
+  rest <- level2Expression
+  return (symbol, rest)
+
+multipleSym = do
+  symbol <- string "*"
+        <|> string "/"
+  rest <- level2Expression
+  return (symbol, rest)
+  
+augmentSym = do
+  symbol <- string "+"
+        <|> string "-"
+  rest <- level2Expression
+  return (symbol, rest)
 
 -- Parsing Method
 parseExp fileName = do

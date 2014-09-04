@@ -16,10 +16,14 @@ import qualified Data.Map as Map
 import System.IO.Unsafe
 import Data.IORef
 import System.Environment
+import Foreign.Ptr
+
 
 type ErrorMsg = String
 
 type Store = Map Name Value
+
+type Register = Ptr Value
 
 type Name = String
 
@@ -28,7 +32,7 @@ data VType = Integer | Boolean | String | Defined
 
 data Value = 
     VNil
-  | Function
+  | VFunc Variable Expression
   | VReg String
   | VTrue
   | VFalse
@@ -37,10 +41,8 @@ data Value =
   | VStr String
   | VTable Store
   deriving (Show)
-  
-data Function = VFunc Variable Expression
 
-data Variable = Variable VType Name
+data Variable = Variable Name
   deriving (Show)
   
 data Identifier = Identifier VType Name
@@ -56,7 +58,6 @@ data Expression =
   | Rget Expression Expression
   | Rset Expression Expression Expression
   | Opraw Expression Binop Expression
-  -- | Func Expression Expression
   | Funcall Expression Expression
   deriving (Show)
   

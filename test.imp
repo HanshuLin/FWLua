@@ -1,1 +1,4 @@
-(_ENV)["i"] = 3;
+rawset(_ENV, "i", 3);
+rawset(_ENV, "j", rawget(_ENV, "i"));
+rawset(_ENV, "k", {});
+rawset(rawget(_ENV, "k"), "l", 2+3);
