@@ -1,14 +1,14 @@
 module SymTab (
   Variable(..),
   Value(..),
-  Name,
   ErrorMsg,
   Store,
+  Table,
+  Register,
   VType(..),
   Expression(..),
   Unop(..),
   Binop(..),
-  Identifier(..),
   Parameter(..),
   ) where
 import Data.Map (Map)
@@ -21,11 +21,11 @@ import Foreign.Ptr
 
 type ErrorMsg = String
 
-type Store = Map Name Value
+type Store = Map Register Table
 
-type Register = Ptr Value
+type Table = Map String Value
 
-type Name = String
+type Register = String
 
 data VType = Integer | Boolean | String | Defined
   deriving (Eq, Show)
@@ -33,19 +33,16 @@ data VType = Integer | Boolean | String | Defined
 data Value = 
     VNil
   | VFunc Variable Expression
-  | VReg String
+  | VReg Register
   | VTrue
   | VFalse
   | VInt Integer
   | VBool Bool
   | VStr String
-  | VTable Store
+  | VTable Table
   deriving (Show)
 
-data Variable = Variable Name
-  deriving (Show)
-  
-data Identifier = Identifier VType Name
+data Variable = Variable String
   deriving (Show)
 
 data Parameter = Parameter VType

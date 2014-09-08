@@ -8,8 +8,9 @@ import Text.ParserCombinators.Parsec
 import Control.Monad.Except
 import System.Environment
 import Data.IORef
+import System.Random
 
-tempName = "_ENV"
+adrs = mkStdGen 30
 
 applyOp :: Binop -> Value -> Value -> Either ErrorMsg Value
 applyOp Plus (VInt i) (VInt j) = Right $ VInt $ i + j
@@ -40,6 +41,8 @@ applyUnop :: Unop -> Value -> Either ErrorMsg Value
 applyUnop Neg (VInt i) = Right $ VInt $ -i
 applyUnop Not (VBool i) = Right $ VBool $ not i
 
+
+
 evaluate :: Expression -> Store -> Either ErrorMsg (Value, Store)
 
 evaluate (Seq e1 e2) s = do
@@ -51,20 +54,16 @@ evaluate (Val v) s = do
   return (v, s)
 
 evaluate New s = do
-  return ((VTable Map.empty), s)
+  address <- allocateAdr 1 s
+  s' <- Right $ Map.insert address Map.empty s
+  return ((VReg address), s')
 
 evaluate (Rget table key) s = do
   (a, s1) <- evaluate table s
   (k, s') <- evaluate key s1
   t <- pointToTable a s'
   v <- findVar k t
-  case k of
-    VStr str -> do
-      tempName <- Right $ str
-      return (v, s')
-    otherwise -> do
-      Left $ "<ERROR><Rawset> False register type"
-
+  return (v, s')
 
 evaluate (Rset table key value) s = do
   (a, s1) <- evaluate table s
@@ -74,20 +73,11 @@ evaluate (Rset table key value) s = do
   case k of
     VStr key -> do
       t' <- Right $ Map.insert key v t
-      case a of 
+      case a of
         VReg reg -> do
-          vt <- Right $ VTable t'
-          s' <- Right $ Map.insert reg vt s3
-          return (vt, s')
-        VTable tbl -> do
-          vt <- Right $ VTable t'
-          key <- Right $ tempName
-          s' <- Right $ Map.insert key vt s3
-          return (vt, s')
-        otherwise -> do
-          Left $ "<ERROR><Rawset> False register type"
-    otherwise -> do
-      Left $ "<ERROR><Rawset> False key type"
+          s' <- Right $ Map.insert reg t' s3
+          return (a, s')
+    otherwise -> Left $ "<ERROR><Rawset> False key type"
 
 
 evaluate (Opraw exp1 op exp2) s = do
@@ -102,31 +92,16 @@ evaluate (Funcall f expr) s = error "TBD"
   -- (v, s') <- evaluate expr' s2
   -- return (v, s')
 
-
-evaluateReg :: Expression -> Store -> Either ErrorMsg (Value, Store)
-evaluateReg (Val reg) s = do
-  return (reg, s)
-evaluateReg (Rget table (Val (VStr key))) s = do
-  return ((VReg key), s)
-
-
-pointToTable :: Value -> Store -> Either ErrorMsg Store
-
+pointToTable :: Value -> Store -> Either ErrorMsg Table
 pointToTable (VReg reg) s = do
   t <- Right $ Map.lookup reg s
   case t of 
-    Just (VTable table) -> return table
+    Just table -> return table
     otherwise -> Left $ "<ERROR> Don't have table [" ++ reg ++ "]"
     
-pointToTable (VTable tbl) s = do
-  return tbl
-  
-
-    
-findVar :: Value -> Store -> Either ErrorMsg Value
-
-findVar (VStr k) s = do
-  v <- Right $ Map.lookup k s
+findVar :: Value -> Table -> Either ErrorMsg Value
+findVar (VStr k) t = do
+  v <- Right $ Map.lookup k t
   case v of
     Just value -> return value
     Nothing -> Left $ "<ERROR> Key [" ++ k ++ "] does not exist in table"
@@ -135,11 +110,19 @@ findVar _ _ = do
   Left $ "<ERROR> FALSE TYPE"
 
 
+allocateAdr :: Int -> Store -> Either ErrorMsg Register
+
+allocateAdr num st = do
+  address <- Right $ "_#A0" ++ (show num)
+  cond <- Right $ Map.notMember address st
+  case cond of
+    True -> return address
+    False -> allocateAdr (succ num) st
+
 -- Executing Method
 run :: Expression -> Either ErrorMsg (Value, Store)
 run prog = do
-  reg <- Right $ newIORef tempName
-  globle <- Right $ Map.insert "_ENV" (VTable Map.empty) Map.empty
+  globle <- Right $ Map.insert "_ENV" Map.empty Map.empty
   evaluate prog globle
 
 
