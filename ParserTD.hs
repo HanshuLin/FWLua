@@ -59,30 +59,46 @@ restSeq = do
 
 singleExpression = expression
 
-expression = try(rgetExpression)
-         <|> try(rsetExpression)
+expression = try(rsetExpression)
+
+         <|> try(rgetExpression)
+         <|> try(funcCall)
+
          <|> try(funcExpression)
          <|> try(binopExp)
          <|> try(specialExpression)
          <|> try(constantExpression)
          <|> tableConst
          <?> "rawset, rawget, constant or {}"
+         
+funcCall = do
+  spaces
+  char '('
+  expr1 <- expression
+  char ')'
+  char '('
+  expr2 <- expression
+  char ')'
+  spaces
+  return $ Funcall expr1 expr2
               
 funcExpression = do
   spaces
   string "function"
   spaces
-  var <- variable
+  arg <- argument
   spaces
-  exprs <- expression
+  string "return"
+  spaces
+  expr <- expression
   spaces
   string "end"
   spaces
-  return $ Val $ VFunc var exprs
+  return $ Val $ VFunc arg expr
   
-variable = do
-  str <- many $ noneOf "\""
-  return $ Variable str
+argument = do
+  str <- many $ alphaNum
+  return $ str
 
 rsetExpression = do
   spaces

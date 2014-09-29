@@ -62,7 +62,7 @@ evaluate (Rget table key) s = do
   (a, s1) <- evaluate table s
   (k, s') <- evaluate key s1
   t <- pointToTable a s'
-  v <- findVar k t
+  v <- pointToVal k t
   return (v, s')
 
 evaluate (Rset table key value) s = do
@@ -86,11 +86,18 @@ evaluate (Opraw exp1 op exp2) s = do
   v <- applyOp op v1 v2
   return (v, s')
 
-evaluate (Funcall f expr) s = error "TBD"
-  -- (expr', s1) <- evaluate f s
-  -- (v1, s2) <- evaluate expr s1
-  -- (v, s') <- evaluate expr' s2
-  -- return (v, s')
+evaluate (Funcall func expr) s = do
+  (expr', s1) <- evaluate func s
+  (v1, s2) <- evaluate expr s1
+  (v, s') <- evaluateFunc expr' s2
+  return (v, s')
+  
+evaluateFunc :: Value -> Store -> Either ErrorMsg (Value, Store)
+evaluateFunc (VFunc str expr) s = do
+  (v, s') <- evaluate expr s
+  return (v, s')
+
+
 
 pointToTable :: Value -> Store -> Either ErrorMsg Table
 pointToTable (VReg reg) s = do
@@ -99,19 +106,18 @@ pointToTable (VReg reg) s = do
     Just table -> return table
     otherwise -> Left $ "<ERROR> Don't have table [" ++ reg ++ "]"
     
-findVar :: Value -> Table -> Either ErrorMsg Value
-findVar (VStr k) t = do
+pointToVal :: Value -> Table -> Either ErrorMsg Value
+pointToVal (VStr k) t = do
   v <- Right $ Map.lookup k t
   case v of
     Just value -> return value
     Nothing -> Left $ "<ERROR> Key [" ++ k ++ "] does not exist in table"
     
-findVar _ _ = do
+pointToVal _ _ = do
   Left $ "<ERROR> FALSE TYPE"
 
 
 allocateAdr :: Int -> Store -> Either ErrorMsg Register
-
 allocateAdr num st = do
   address <- Right $ "_#A0" ++ (show num)
   cond <- Right $ Map.notMember address st

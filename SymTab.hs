@@ -14,10 +14,7 @@ module SymTab (
 import Data.Map (Map)
 import qualified Data.Map as Map
 import System.IO.Unsafe
-import Data.IORef
 import System.Environment
-import Foreign.Ptr
-
 
 type ErrorMsg = String
 
@@ -27,19 +24,21 @@ type Table = Map String Value
 
 type Register = String
 
+type Argument = String
+
 data VType = Integer | Boolean | String | Defined
   deriving (Eq, Show)
 
 data Value = 
     VNil
-  | VFunc Variable Expression
+  | VArg
+  | VFunc Argument Expression
   | VReg Register
-  | VTrue
-  | VFalse
   | VInt Integer
   | VBool Bool
   | VStr String
-  | VTable Table
+  | VTrue
+  | VFalse
   deriving (Show)
 
 data Variable = Variable String
