@@ -87,16 +87,11 @@ evaluate (Opraw exp1 op exp2) s = do
   return (v, s')
 
 evaluate (Funcall func expr) s = do
-  (expr', s1) <- evaluate func s
+  (expr1, s1) <- evaluate func s
   (v1, s2) <- evaluate expr s1
-  (v, s') <- evaluateFunc expr' s2
+  expr' <- importFunc expr1 v1
+  (v, s') <- evaluate expr' s2
   return (v, s')
-  
-evaluateFunc :: Value -> Store -> Either ErrorMsg (Value, Store)
-evaluateFunc (VFunc str expr) s = do
-  (v, s') <- evaluate expr s
-  return (v, s')
-
 
 
 pointToTable :: Value -> Store -> Either ErrorMsg Table
@@ -115,6 +110,30 @@ pointToVal (VStr k) t = do
     
 pointToVal _ _ = do
   Left $ "<ERROR> FALSE TYPE"
+  
+  
+importFunc :: Value -> Value -> Either ErrorMsg Expression
+importFunc (VFunc str expr) val = do
+  expr' <- substitute expr str val
+  return expr'
+  
+substitute :: Expression -> String -> Value -> Either ErrorMsg Expression
+substitute expr a v = do
+  case expr of
+    Val value -> do
+      case value of
+        VArg str -> do
+          case (str == a) of
+            True -> return $ Val v
+            False -> return $ Val $ VArg str
+        otherwise -> do
+          return $ Val value
+    Opraw expr1 op expr2 -> do
+      expr1' <- substitute expr1 a v
+      expr2' <- substitute expr2 a v
+      return $ Opraw expr1' op expr2'
+
+
 
 
 allocateAdr :: Int -> Store -> Either ErrorMsg Register

@@ -59,31 +59,30 @@ restSeq = do
 
 singleExpression = expression
 
-expression = try(rsetExpression)
-
+expression = try(specialExpression)
          <|> try(rgetExpression)
-         <|> try(funcCall)
-
-         <|> try(funcExpression)
-         <|> try(binopExp)
-         <|> try(specialExpression)
-         <|> try(constantExpression)
+         <|> rsetExpression
+         <|> funcCall
+         <|> funcExpression
          <|> tableConst
+         <|> try(binopExp)
+         <|> try(constantExpression)
+         <|> argExpression
          <?> "rawset, rawget, constant or {}"
          
 funcCall = do
-  spaces
   char '('
+  spaces
   expr1 <- expression
   char ')'
   char '('
+  spaces
   expr2 <- expression
   char ')'
   spaces
   return $ Funcall expr1 expr2
               
 funcExpression = do
-  spaces
   string "function"
   spaces
   arg <- argument
@@ -99,33 +98,39 @@ funcExpression = do
 argument = do
   str <- many $ alphaNum
   return $ str
+  
+argExpression = do
+   arg <- argument
+   return $ Val $ VArg arg
+   
+   
 
 rsetExpression = do
+  string "rawset("
   spaces
-  string "rawset"
-  char '('
   tbl <- expression
   char ','
+  spaces
   key <- expression
   char ','
+  spaces
   val <- expression
   spaces
   char ')'
   return $ Rset tbl key val
   
 rgetExpression = do
+  string "rawget("
   spaces
-  string "rawget"
-  char '('
   tbl <- expression
   char ','
+  spaces
   key <- expression
   char ')'
   spaces
   return $ Rget tbl key
   
 tableConst = do
-  spaces
   char '{'
   spaces
   char '}'
@@ -164,7 +169,6 @@ stringTerm = do
          
 
 binopExp = do
-  spaces
   expr <- level2Expression
   spaces
   rest <- optionMaybe relationSym
@@ -173,7 +177,6 @@ binopExp = do
     Just (op, expr') -> Opraw expr (transOp op) expr')
     
 level2Expression = do
-  spaces
   expr <- level1Expression
   spaces
   add <- optionMaybe augmentSym
@@ -182,7 +185,6 @@ level2Expression = do
     Just (op, expr') -> return $ Opraw expr (transOp op) expr'
   
 level1Expression = do
-  spaces
   expr <- prefixExp
   spaces
   add <- optionMaybe multipleSym
@@ -190,8 +192,9 @@ level1Expression = do
     Nothing -> return expr
     Just (op, expr') -> return $ Opraw expr (transOp op) expr'
     
-prefixExp = constantExpression
-        <|> rgetExpression
+prefixExp = rgetExpression
+        <|> constantExpression
+        <|> argExpression
     
 
 relationSym = do

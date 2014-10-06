@@ -31,7 +31,7 @@ data VType = Integer | Boolean | String | Defined
 
 data Value = 
     VNil
-  | VArg
+  | VArg String
   | VFunc Argument Expression
   | VReg Register
   | VInt Integer
