@@ -1,10 +1,5 @@
-rawset(_ENV, "i", 3);
-rawset(_ENV, "func", function x return x + 1 end );
-rawset(_ENV, "f1", (rawget(_ENV, "func"))(rawget(_ENV, "i")));
-rawset(_ENV, "f2", (rawget(_ENV, "func"))(49));
-rawset(_ENV, "tbl1", {});
-rawset(_ENV, "tbl2", {});
-rawset(_ENV, "j", rawget(_ENV, "i"));
-rawset(rawget(_ENV, "tbl1"), "l", 2 + 3);
-rawset(rawget(_ENV, "tbl1"), "k", 9);
-rawset(rawget(_ENV, "tbl2"), "l", rawget(rawget(_ENV, "tbl1"), "l"));
+rawset(_ENV, "factorial", function(n) return ((((rawget(_METATABLE, "if"))(n == 0))(function() return 1; end))(function() return n * (rawget(_ENV, "factorial"))(n-1); end))(); end);
+rawset(_ENV, "TEST2", (rawget(_ENV, "factorial"))(5));
+
+rawset(_ENV, "callFun", function(f) return (f)(5); end);
+rawset(_ENV, "TEST", (rawget(_ENV, "callFun"))(function (n) return n + 1; end));
