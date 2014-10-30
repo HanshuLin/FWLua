@@ -46,7 +46,7 @@ fileP = do
 
 sequenceExpression = do
   spaces
-  st <- singleExpression
+  st <- expression
   spaces
   char ';'
   rest <- optionMaybe restSeq
@@ -55,22 +55,21 @@ sequenceExpression = do
     Just st' -> Seq st st')
 
 restSeq = do
-  sequenceExpression
+  try(sequenceExpression)
 
-singleExpression = expression
+expression = do
+  expr <- try(rsetExpression)
+      <|> try(specialExpression)
+      <|> try(functionDefinition)
+      <|> tableConst
+      <|> try(binopExp)
+      <|> functionCall
+      <|> try(rgetExpression)
+      <|> try(constantExpression)
+      <?> "expression"
+  return expr
 
-expression = try(specialExpression)
-         <|> try(rgetExpression)
-         <|> rsetExpression
-         <|> funcCall
-         <|> funcExpression
-         <|> tableConst
-         <|> try(binopExp)
-         <|> try(constantExpression)
-         <|> argExpression
-         <?> "rawset, rawget, constant or {}"
-         
-funcCall = do
+functionCall = do
   char '('
   spaces
   expr1 <- expression
@@ -82,14 +81,16 @@ funcCall = do
   spaces
   return $ Funcall expr1 expr2
               
-funcExpression = do
+functionDefinition = do
   string "function"
   spaces
+  char '('
   arg <- argument
+  char ')'
   spaces
   string "return"
   spaces
-  expr <- expression
+  expr <- sequenceExpression
   spaces
   string "end"
   spaces
@@ -137,13 +138,17 @@ tableConst = do
   spaces
   return New
 
-specialExpression = globalVar
+specialExpression = try(globalVar)
+                <|> try(metatable)
 
 globalVar = do
-  spaces
   string "_ENV"
   spaces
   return $ Val (VReg "_ENV")
+metatable = do
+  string "_METATABLE"
+  spaces
+  return $ Val (VReg "_METATABLE")
 
 constantExpression = do
   spaces
@@ -155,7 +160,7 @@ numberTerm = do
   num <- many1 digit
   return $ VInt $ read num
 booleanTerm = do
-  bStr <- string "true" <|> string "false" <|> string "skip"
+  bStr <- string "true" <|> string "false"
   return $ case bStr of
     "true" -> VTrue
     "false" -> VFalse
@@ -192,10 +197,11 @@ level1Expression = do
     Nothing -> return expr
     Just (op, expr') -> return $ Opraw expr (transOp op) expr'
     
-prefixExp = rgetExpression
-        <|> constantExpression
-        <|> argExpression
-    
+prefixExp = try(rgetExpression)
+        <|> try(constantExpression)
+        <|> try(functionCall)
+        <|> try(argExpression)
+        <?> "prefix expression"
 
 relationSym = do
   symbol <- try (string "<=")
@@ -205,18 +211,21 @@ relationSym = do
         <|> string "=="
         <|> string "~="
         <?> "binary operator"
+  spaces
   rest <- level2Expression
   return (symbol, rest)
 
 multipleSym = do
   symbol <- string "*"
         <|> string "/"
+  spaces
   rest <- level2Expression
   return (symbol, rest)
   
 augmentSym = do
   symbol <- string "+"
         <|> string "-"
+  spaces
   rest <- level2Expression
   return (symbol, rest)
 
@@ -230,7 +239,7 @@ printParseTree fileName = do
   case p of
     Left parseErr -> print parseErr
     Right exp -> do
-      putStrLn $ "[PARSE TREE]"
+      putStrLn $ "======[AST FOR EXP]======"
       print exp
       putStrLn $ ""
         

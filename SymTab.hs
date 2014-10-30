@@ -33,6 +33,7 @@ data Value =
     VNil
   | VArg String
   | VFunc Argument Expression
+  | VResFunc String
   | VReg Register
   | VInt Integer
   | VBool Bool

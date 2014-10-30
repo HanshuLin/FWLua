@@ -9,8 +9,20 @@ import Control.Monad.Except
 import System.Environment
 import Data.IORef
 import System.Random
+import Data.Maybe
 
 adrs = mkStdGen 30
+output = Map.insert "_#OUTPUT" Map.empty Map.empty
+
+-- ==========RESERVED FUNCTION==========
+reservedFunction =  Map.fromList 
+                    [("print",VResFunc "PRINT"),
+                     ("fix",VFunc "f" (Funcall (Val (VFunc "x" (Funcall (Val (VArg "f")) (Val (VFunc "y" (Funcall (Funcall (Val (VArg "x")) (Val (VArg "x"))) (Val (VArg "y")))))))) (Val (VFunc "x" (Funcall (Val (VArg "f")) (Val (VFunc "y" (Funcall (Funcall (Val (VArg "x")) (Val (VArg "x"))) (Val (VArg "y")))))))))),
+                     ("if",VFunc "fc" (Val (VFunc "t" (Val (VFunc "f" (Funcall (Funcall (Val (VArg "fc")) (Val (VArg "t"))) (Val (VArg "f"))))))))
+                    ]
+
+
+reserved = Map.insert "_METATABLE" reservedFunction output
 
 applyOp :: Binop -> Value -> Value -> Either ErrorMsg Value
 applyOp Plus (VInt i) (VInt j) = Right $ VInt $ i + j
@@ -24,7 +36,10 @@ applyOp Ge (VInt i) (VInt j) = Right $ VBool $ i >= j
 applyOp Lt (VInt i) (VInt j) = Right $ VBool $ i < j
 applyOp Le (VInt i) (VInt j) = Right $ VBool $ i <= j
 
-applyOp Eq (VInt i) (VInt j) = Right $ VBool $ i == j
+applyOp Eq (VInt i) (VInt j) = do
+  case (i == j) of
+    True -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "x"))))
+    False -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "y"))))
 applyOp Eq (VBool i) (VBool j) = Right $ VBool $ i == j
 applyOp Eq (VStr i) (VStr j) = Right $ VBool $ i == j
 
@@ -86,10 +101,10 @@ evaluate (Opraw exp1 op exp2) s = do
   v <- applyOp op v1 v2
   return (v, s')
 
-evaluate (Funcall func expr) s = do
-  (expr1, s1) <- evaluate func s
-  (v1, s2) <- evaluate expr s1
-  expr' <- importFunc expr1 v1
+evaluate (Funcall fun pari) s = do
+  (exprVal, s1) <- evaluate fun s
+  (v1, s2) <- evaluate pari s1
+  expr' <- importFunc exprVal v1
   (v, s') <- evaluate expr' s2
   return (v, s')
 
@@ -116,24 +131,43 @@ importFunc :: Value -> Value -> Either ErrorMsg Expression
 importFunc (VFunc str expr) val = do
   expr' <- substitute expr str val
   return expr'
+importFunc _ val = Left "<ERROR>This is not a function"
   
 substitute :: Expression -> String -> Value -> Either ErrorMsg Expression
 substitute expr a v = do
   case expr of
+    Seq expr1 expr2 -> do
+      expr1' <- substitute expr1 a v
+      expr2' <- substitute expr2 a v
+      return $ Seq expr1' expr2'
     Val value -> do
       case value of
-        VArg str -> do
-          case (str == a) of
+        VFunc arg body -> do
+          body' <- substitute body a v
+          return $ Val $ VFunc arg body'
+        VArg arg -> do
+          case (arg == a) of
             True -> return $ Val v
-            False -> return $ Val $ VArg str
-        otherwise -> do
-          return $ Val value
+            False -> return $ Val value
+        otherwise -> return expr
+    New -> return expr
+    Rget table key -> do
+      table' <- substitute table a v
+      key' <- substitute key a v
+      return $ Rget table' key'
+    Rset table key val -> do
+      table' <- substitute table a v
+      key' <- substitute key a v
+      val' <- substitute val a v
+      return $ Rset table' key' val'
     Opraw expr1 op expr2 -> do
       expr1' <- substitute expr1 a v
       expr2' <- substitute expr2 a v
       return $ Opraw expr1' op expr2'
-
-
+    Funcall func expr -> do
+      func' <- substitute func a v
+      expr' <- substitute expr a v
+      return $ Funcall func' expr'
 
 
 allocateAdr :: Int -> Store -> Either ErrorMsg Register
@@ -147,18 +181,25 @@ allocateAdr num st = do
 -- Executing Method
 run :: Expression -> Either ErrorMsg (Value, Store)
 run prog = do
-  globle <- Right $ Map.insert "_ENV" Map.empty Map.empty
+  globle <- Right $ Map.insert "_ENV" Map.empty reserved
   evaluate prog globle
 
 
 excuteFile fileName = do
-  putStrLn $ "[STORE]"
+  putStrLn $ "======[THE STORE]======"
   case fileName of
     Left parseErr -> print parseErr
     Right exp ->
       case (run exp) of
         Left msg -> print msg
-        Right (v,s) -> print $ s
-        
+        Right (v,s) -> showStore s
+  putStrLn ""
+  putStrLn $ "======[THE OUTPUT]======"
+  
+  
+showStore s = do
+  putStrLn $ Map.showTree $ (s Map.! "_ENV")
 
-
+  
+  
+  

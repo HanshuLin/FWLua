@@ -33,7 +33,7 @@ What is more, as an extension language, Lua has no ``main" method or program. Al
 The compiler of lua can be executed in almost all platforms and they are also very small (less that 200k in common). The distribution includes a sample host program called lua, which uses the Lua library to offer a complete, standalone Lua interpreter, for interactive or batch use. Nowaday, Lua has been used in many domains because of its pros.
 
 %--------------------------------------------------------------------------
-\section{Full Lua language}
+\section{Full Version Lua language}
 At beginning, the syntax in full version Lua will be introduced in this chapter. As mentioned above, Lua language is an extension programming language. In other words, the syntax of full Lua could not be so comlicated. However, there are still several parts which would render confusion in Lua. We will talk about it later.  
 
 \subsection{Syntax in Lua}
@@ -195,7 +195,7 @@ equals to
 
 % ---------------------------[FW1][SYNTAX]Expression------------------------------
 \begin{figure}
-\caption{Expressions in Featherweight Lua}
+\caption{Expressions in Featherweight Lua Prototype}
 \label{fig:FWLuaExp}
 \[
 \begin{array}{llr}
@@ -298,7 +298,7 @@ equals to
 
 % -----------------------------[FW1][SYNTAX]Statement------------------------------
 \begin{figure}
-\caption{Statements in Featherweight Lua V1}
+\caption{Statements in the Prototype of Featherweight Lua}
 \label{fig:FWLuaStat}
 \[
 \begin{array}{llr}
@@ -371,15 +371,18 @@ equals to
 \end{figure}
 
 
-\section{Further works in FWLua}
-\subsection{Adding Functions}
+\section{Core works in FWLua}
+\subsection{Functions}
 Although Lua is a extension programming language and is simple, its full syntax is complex and a little wierd. It would be hard to prove a formal security guarantees. Therefore, to make it simpler to read and prove, we need to simplify the original full syntax. Here we call it Featherweight Lua (FWLua). In FWLua, we remove those unnecessary syntax and make a desugering. Only basic and key syntax are remained in the syntax of FWLua.  
+\subsubsection{Function with scope}
+\subsubsection{Recursive functions}
+\subsubsection{Fixed combinator in lamda calculus}
 
 
 % ---------------------------------[FW2][SYNTAX]----------------------------------
 \newcommand{\abFunction}[2]{{\tt function} ~{#1}~{#2}~{\tt end}}
 \begin{figure}
-\caption{Full Syntax in Featherweight Lua V2}
+\caption{Full Syntax in Featherweight Lua}
 \label{fig:FW2Syx}
 \[
   \begin{array}{llr}
@@ -414,7 +417,7 @@ Although Lua is a extension programming language and is simple, its full syntax 
 \newcommand{\semanticFull}[4]{{#1},{#2} \Downarrow {#3}, {#4}}
 
 \begin{figure}[P]
-\caption{Semantics of Featherweight Lua V2}
+\caption{Semantics of Featherweight Lua}
 {\bf Runtime Syntax:}
 \label{fig:FW2Sem}
 \[
@@ -488,10 +491,13 @@ Although Lua is a extension programming language and is simple, its full syntax 
 
 
 \subsection{Metatables and Metamethods}
+\subsubsection{Automatic function in metatables}
+\subsubsection{Defult metamethods in metatables}
+\subsubsection{Metatables in FeatherWeight Lua}
 
 % ---------------------------------[FW2.2][SYNTAX]----------------------------------
 \begin{figure}
-\caption{Full Syntax in Featherweight Lua V2.2}
+\caption{Full Syntax in Featherweight Lua with Metatables}
 \label{fig:FW2Syx}
 \[
   \begin{array}{llr}
@@ -606,17 +612,15 @@ Although Lua is a extension programming language and is simple, its full syntax 
 \newcommand{\metaSemanticFull}[6]{{#1}, {#2}, {#3} \Downarrow {#4}, {#5}, {#6}}
 
 \begin{figure}[P]
-\caption{Semantics of Featherweight Lua V2.1}
+\caption{Semantics ---- Featherweight Lua With Metatables and Metamethods}
 {\bf Runtime Syntax:}
 \label{fig:FW2.1Sem}
 \[
 \begin{array}{rclcl}
   \sigma & \in & {Store} \quad  & = & \quad {register} ~\rightarrow ~{table} \\
-  m & \in & {Metatable} \quad  & = & \quad {string} ~\rightarrow ~{function} \\
   T & \in & {Table} \quad  & = & \quad {string} ~\rightarrow ~{value} \\
   f & \in & {Function} \quad & ::= & \quad function \\
-  r & \in & {Raw~Value} \quad & ::= & \quad constant~|~ register ~|~ f~ \\
-  v & \in & {Value} \quad & ::= & \quad r~|~ Table~ \\
+  v & \in & {Value} \quad & ::= & \quad constant~|~ register ~|~ f~ \\
   x & \in & {Name} \quad & ::= & \quad string 
   \\
 \end{array}
@@ -630,15 +634,12 @@ Although Lua is a extension programming language and is simple, its full syntax 
   \semanticFull {v}{\sigma} {v}{\sigma}
 }
 \ssrule{FW-NEW}{
-  a \notin dom(\sigma)
+  a \notin dom(\sigma)\\
+  \sigma' = \sigma + (a := \{\})
 }{
-  \semanticFull {\{\}} {\sigma}   {a} {\sigma[a := \{\}]}
+  \semanticFull {\{\}} {\sigma}   {a} {\sigma'}
 }
-% \ssrule{FW-REGISTER}{
-%   a \in dom(\sigma) \quad T = \sigma(a)
-% }{
-%   \semanticFull {a} {\sigma}   {T} {\sigma}
-% }
+
 \ssrule{FW-RAWGET}{
   \semanticFull{e_1}  {\sigma}    {a}  {\sigma_1} \quad
   \semanticFull{e_2}  {\sigma_1}    {s}  {\sigma'} \\
@@ -656,33 +657,12 @@ Although Lua is a extension programming language and is simple, its full syntax 
   T' = T~+~(s := v) \\
   \sigma' = \sigma_3[a:=T']
 }{
-  \semanticFull{{\tt rawset}(e_1,e_2,e_3)}{\sigma}{T'}{\sigma'}
+  \semanticFull{{\tt rawset}(e_1,e_2,e_3)}{\sigma}{a}{\sigma'}
 }
-% \ssrule{FW-SET-UPDATE}{
-%   \semanticFull{e_1}{\sigma}{a}{\sigma_1} \quad
-%   \semanticFull{e_2}{\sigma_1}{s}{\sigma_2} \quad
-%   \semanticFull{e_3}{\sigma_2}{v}{\sigma_3} \\
-%   T = \sigma_3[a] \quad  s \in dom(T)\\
- 
-%    \semanticFull{{\tt rawset}(e_1,e_2,e_3)}{\sigma_3}{T'}{\sigma'} \\
-% }{
-%   \semanticFull{e_1[e_2] = e_3}{\sigma}{\tt nil}{\sigma'}
-% }
-% \ssrule{FW-SET-NEW}{
-%   \semanticFull{e_1}{\sigma}{a}{\sigma_1} \quad
-%   \semanticFull{e_2}{\sigma_1}{s}{\sigma_2} \quad
-%   \semanticFull{e_3}{\sigma_2}{v}{\sigma_3} \\
-%   T = \sigma_3[a] \quad  s \notin dom(T)\\
-%   f = T[{``\tt {\_}MT}"][{\tt ``\_\_newindex"}]\\
-%  
-%    \semanticFull{((f(T))(s))(v)}{\sigma_3}{v}{\sigma'} \\
-% }{
-%   \semanticFull{e_1[e_2] = e_3}{\sigma}{\tt nil}{\sigma'}
-% }
 \ssrule{FW-BINOP-RAW}{
-  \semanticFull{e_1}{\sigma}{r_1}{\sigma_1} \quad
-  \semanticFull{e_2}{\sigma_1}{r_2}{\sigma'} \\
-  v = r_1 ~op~ r_2
+  \semanticFull{e_1}{\sigma}{v_1}{\sigma_1} \quad
+  \semanticFull{e_2}{\sigma_1}{v_2}{\sigma'} \\
+  v = v_1 ~op~ v_2
 }{
   \semanticFull{e_1 ~op~ e_2}{\sigma}{v}{\sigma'}
 }
@@ -696,11 +676,11 @@ Although Lua is a extension programming language and is simple, its full syntax 
   \semanticFull{e_1 ~op~ e_2}{\sigma}{v_2}{\sigma'}
 }
 \ssrule{FW-BINOP-RIGHT}{
-  \semanticFull{e_1}{\sigma}{r}{\sigma_1} \quad
+  \semanticFull{e_1}{\sigma}{v}{\sigma_1} \quad
   \semanticFull{e_2}{\sigma_1}{T}{\sigma_2} \\
   m = T[{\tt ``{\_}MT"}]\quad
   f = m[{\tt translate}(op)]\\
-   \semanticFull{(f(r))(T)}  {\sigma_2}    {v} {\sigma'} \\
+   \semanticFull{(f(v))(T)}  {\sigma_2}    {v} {\sigma'} \\
 }{
   \semanticFull{e_1 ~op~ e_2}{\sigma}{v}{\sigma'}
 }
@@ -714,8 +694,15 @@ Although Lua is a extension programming language and is simple, its full syntax 
 \end{array}
 \]
 \end{figure}
-\subsection{Desugaring}
+
 % -------------------------------------[DESUGARING]---------------------------------
+\subsection{Desugaring}
+\subsubsection{Desugaring from Lua to FWLua}
+\subsubsection{Set and get value}
+\subsubsection{Funtion}
+\subsubsection{Table constructor}
+\subsubsection{Binary operation}
+
 
 \newcommand{\desugar}[2]{{#1} & \xlongequal[]{def} & {\begin{array}{@{}l@{}} #2 \end{array}}\\}
 
@@ -761,11 +748,20 @@ Although Lua is a extension programming language and is simple, its full syntax 
 \end{array}
 \]
 \end{figure}
-\section{Implementation}
+\section{Implementation: Interpreter in Haskell}
+\subsection{Introduction}
+\subsection{Structure}
+\subsection{Desugaring in Lua}
+\subsection{Parser.hs}
+\subsection{Symbol Table}
+\subsection{Executor.hs}
+\subsection{Run and Runfile}
 
 \section{Related work}
 
 \section{Conclusion}
+
+\section{Reference}
 
 
 \end{document}
