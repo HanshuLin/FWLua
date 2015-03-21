@@ -30,8 +30,7 @@ test code = do
 lua :: IO ()
 lua = do
   luaTest "testlua.imp"
-  
-  
+
 run :: IO ()
 run = do
-  test "test.imp"
+  test "test2.imp"

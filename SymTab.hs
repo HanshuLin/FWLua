@@ -50,6 +50,7 @@ data Parameter = Parameter VType
   
 data Expression =
     Seq Expression Expression
+  | This
   | Val Value                                   --Constant
   | New
   | Rget Expression Expression
@@ -80,6 +81,7 @@ data Binop =
   | Nq       -- ~= :: Int -> Int -> Bool
   | And
   | Or
+  | Unm
   deriving (Show)
 
 

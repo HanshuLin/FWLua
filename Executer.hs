@@ -15,14 +15,13 @@ adrs = mkStdGen 30
 output = Map.insert "_#OUTPUT" Map.empty Map.empty
 
 -- ==========RESERVED FUNCTION==========
-reservedFunction =  Map.fromList 
-                    [("print",VResFunc "PRINT"),
-                     ("fix",VFunc "f" (Funcall (Val (VFunc "x" (Funcall (Val (VArg "f")) (Val (VFunc "y" (Funcall (Funcall (Val (VArg "x")) (Val (VArg "x"))) (Val (VArg "y")))))))) (Val (VFunc "x" (Funcall (Val (VArg "f")) (Val (VFunc "y" (Funcall (Funcall (Val (VArg "x")) (Val (VArg "x"))) (Val (VArg "y")))))))))),
-                     ("if",VFunc "fc" (Val (VFunc "t" (Val (VFunc "f" (Funcall (Funcall (Val (VArg "fc")) (Val (VArg "t"))) (Val (VArg "f"))))))))
+reservedTable =  Map.fromList
+                    [("_outer",VReg "_ENV"),
+                     ("_arg",VReg "_ENV")
                     ]
 
 
-reserved = Map.insert "_METATABLE" reservedFunction output
+--reserved = Map.insert "_METATABLE" reservedFunction output
 
 applyOp :: Binop -> Value -> Value -> Either ErrorMsg Value
 applyOp Plus (VInt i) (VInt j) = Right $ VInt $ i + j
@@ -41,16 +40,36 @@ applyOp Eq (VInt i) (VInt j) = do
     True -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "x"))))
     False -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "y"))))
 applyOp Eq (VBool i) (VBool j) = Right $ VBool $ i == j
-applyOp Eq (VStr i) (VStr j) = Right $ VBool $ i == j
+applyOp Eq (VStr i) (VStr j) = do
+  case (i == j) of
+    True -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "x"))))
+    False -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "y"))))
+applyOp Eq (VReg i) (VReg j) = do
+  case (i == j) of
+    True -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "x"))))
+    False -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "y"))))
+
+applyOp Eq val (VNil) = do
+  case val of
+    VNil -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "x"))))
+    otherwise -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "y"))))
 
 applyOp Nq (VInt i) (VInt j) = Right $ VBool $ i /= j
+applyOp Nq val (VNil) = do
+  case val of
+    VNil -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "y"))))
+    otherwise -> Right $ VFunc "x" (Val (VFunc "y" (Val (VArg "x"))))
+
+
+
 applyOp Power (VInt i) (VInt j) = Right $ VInt $ i ^ j
 applyOp Mod (VInt i) (VInt j) = Right $ VInt $ i - (div i j)
 applyOp Cont (VStr i) (VStr j) = Right $ VStr $ i ++ j
 applyOp And (VBool i) (VBool j) = Right $ VBool $ i && j
 applyOp Or (VBool i) (VBool j) = Right $ VBool $ i || j
+applyOp Unm (VNil) (VInt j) = Right $ VInt $ -j
 
-applyOp _ _ _ = Left $ "ERROR: [BOP-EQ]Types are not the same"
+applyOp _ _ _ = Left $ "ERROR: [BOP]Wrong Types are not the same"
 
 applyUnop :: Unop -> Value -> Either ErrorMsg Value
 applyUnop Neg (VInt i) = Right $ VInt $ -i
@@ -121,7 +140,7 @@ pointToVal (VStr k) t = do
   v <- Right $ Map.lookup k t
   case v of
     Just value -> return value
-    Nothing -> Left $ "<ERROR> Key [" ++ k ++ "] does not exist in table"
+    Nothing -> return VNil
     
 pointToVal _ _ = do
   Left $ "<ERROR> FALSE TYPE"
@@ -165,14 +184,25 @@ substitute expr a v = do
       expr2' <- substitute expr2 a v
       return $ Opraw expr1' op expr2'
     Funcall func expr -> do
-      func' <- substitute func a v
-      expr' <- substitute expr a v
-      return $ Funcall func' expr'
+      case func of
+        (Val (VFunc arg e)) -> do
+          case (arg == a) of
+            True -> do
+              expr' <- substitute expr a v
+              return $ Funcall func expr'
+            False -> do
+              func' <- substitute func a v
+              expr' <- substitute expr a v
+              return $ Funcall func' expr'
+        otherwise -> do
+          func' <- substitute func a v
+          expr' <- substitute expr a v
+          return $ Funcall func' expr'
 
 
 allocateAdr :: Int -> Store -> Either ErrorMsg Register
 allocateAdr num st = do
-  address <- Right $ "_#A0" ++ (show num)
+  address <- Right $ "_#TABLE0" ++ (show num)
   cond <- Right $ Map.notMember address st
   case cond of
     True -> return address
@@ -181,7 +211,7 @@ allocateAdr num st = do
 -- Executing Method
 run :: Expression -> Either ErrorMsg (Value, Store)
 run prog = do
-  globle <- Right $ Map.insert "_ENV" Map.empty reserved
+  globle <- Right $ Map.insert "_ENV" reservedTable Map.empty
   evaluate prog globle
 
 

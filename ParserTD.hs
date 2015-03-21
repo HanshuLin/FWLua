@@ -24,6 +24,7 @@ transOp s = case s of
   "=="  -> Eq
   "~="  -> Nq
   "and" -> And
+  "un"  -> Unm
   "or"  -> Or
   "%"   -> Mod
   "^"   -> Power
@@ -48,7 +49,7 @@ sequenceExpression = do
   spaces
   st <- expression
   spaces
-  char ';'
+  try (char ';')
   rest <- optionMaybe restSeq
   return (case rest of
     Nothing   -> st
@@ -61,9 +62,9 @@ expression = do
   expr <- try(rsetExpression)
       <|> try(specialExpression)
       <|> try(functionDefinition)
-      <|> tableConst
+      <|> try(tableConst)
       <|> try(binopExp)
-      <|> functionCall
+      <|> try(functionCall)
       <|> try(rgetExpression)
       <|> try(constantExpression)
       <?> "expression"
@@ -73,10 +74,12 @@ functionCall = do
   char '('
   spaces
   expr1 <- expression
+  spaces
   char ')'
   char '('
   spaces
   expr2 <- expression
+  spaces
   char ')'
   spaces
   return $ Funcall expr1 expr2
@@ -90,16 +93,24 @@ functionDefinition = do
   spaces
   string "return"
   spaces
-  expr <- sequenceExpression
+  expr <- expression
   spaces
   string "end"
   spaces
   return $ Val $ VFunc arg expr
   
-argument = do
-  str <- many $ alphaNum
-  return $ str
-  
+argument = specialArg
+       <|> normalArg
+
+specialArg = do
+   try(char '_')
+   str <- many $ alphaNum
+   return $ "_" ++ str
+
+normalArg = do
+   str <- many $ alphaNum
+   return $ str
+
 argExpression = do
    arg <- argument
    return $ Val $ VArg arg
@@ -118,6 +129,7 @@ rsetExpression = do
   val <- expression
   spaces
   char ')'
+  spaces
   return $ Rset tbl key val
   
 rgetExpression = do
@@ -127,6 +139,7 @@ rgetExpression = do
   char ','
   spaces
   key <- expression
+  spaces
   char ')'
   spaces
   return $ Rget tbl key
@@ -139,22 +152,24 @@ tableConst = do
   return New
 
 specialExpression = try(globalVar)
-                <|> try(metatable)
+                <|> try(register)
 
 globalVar = do
   string "_ENV"
   spaces
   return $ Val (VReg "_ENV")
-metatable = do
-  string "_METATABLE"
+register = do
+  string "_#TABLE0"
+  num <- many1 digit
   spaces
-  return $ Val (VReg "_METATABLE")
+  return $ Val (VReg $ "_#TABLE0" ++ num)
 
 constantExpression = do
   spaces
   t <- numberTerm
    <|> try(booleanTerm)
    <|> try(stringTerm)
+   <|> try(nilTerm)
   return $ Val t
 numberTerm = do
   num <- many1 digit
@@ -169,6 +184,9 @@ stringTerm = do
   str <- many $ noneOf "\""
   char '"'
   return $ VStr str
+nilTerm = do
+  string "nil"
+  return VNil
   
   
          
@@ -200,6 +218,7 @@ level1Expression = do
 prefixExp = try(rgetExpression)
         <|> try(constantExpression)
         <|> try(functionCall)
+        <|> try(specialExpression)
         <|> try(argExpression)
         <?> "prefix expression"
 
@@ -210,6 +229,9 @@ relationSym = do
         <|> string ">"
         <|> string "=="
         <|> string "~="
+        <|> string "and"
+        <|> string "or"
+        <|> string "un"
         <?> "binary operator"
   spaces
   rest <- level2Expression

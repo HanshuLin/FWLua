@@ -1,0 +1,56 @@
+rawset(_ENV, "if", function(cond) return function(t) return function(f) return ((cond)(t))(f) end end end);
+rawset(_ENV, "getValue",
+  function(_var) return
+    function(_local) return
+      (function(_arg) return
+        (function(_outer) return
+
+          ((((rawget(_ENV, "if"))(rawget(_local, _var) ~= nil))(
+            function() return
+              rawget(_local, _var)
+            end))(
+            function() return
+              ((((rawget(_ENV, "if"))(rawget(_arg, _var) ~= nil))(
+                function() return
+                  rawget(_arg, _var)
+                end))(
+                function() return
+                  ((((rawget(_ENV, "if"))(_local == _ENV))(
+                    function() return
+                      nil
+                    end))(
+                    function() return
+                      ((rawget(_ENV, "getValue"))(_var))(_outer)
+                    end)
+                  )()
+                end)
+              )()
+            end)
+          )()
+
+
+        end)(rawget(_local, "_outer"))
+      end)(rawget(_local, "_arg"))
+    end
+  end
+);
+
+rawset(_ENV, "g", "LOCAL");
+rawset(_ENV, "_arg", _ENV);
+rawset(_ENV, "_outer", _ENV);
+
+rawset(_ENV, "foo", rawset(rawset({}, "_arg", {}), "_call",
+  function (_arg) return
+    (function (_outer) return
+      (function (_local) return
+
+        (function () return ((rawget(_ENV, "getValue"))("x"))(_local) end)(rawset(_local, "t", 4))
+
+      end)(rawset(rawset({}, "_outer", _outer), "_arg", _arg))
+    end)(_ENV)
+  end)
+);
+
+
+
+rawset(_ENV, "result", (rawget(rawget(_ENV, "foo"), "_call"))(rawset({}, "g", 40)));

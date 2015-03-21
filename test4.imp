@@ -1,0 +1,9 @@
+(function(_ENV) return
+   (function (_local) return
+     (function (_outer) return
+
+       rawset(_ENV, "l", "Hanshu Lin")
+
+     end)(_ENV)
+   end)({})
+end)(rawset(_G, "_ENV", {}));
